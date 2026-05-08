@@ -1,0 +1,6 @@
+{
+  "name": "Simple Savings Account App",
+  "description": "A modern web application to track multiple savings accounts, manage transactions, and visualize financial growth across different currencies and banks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
