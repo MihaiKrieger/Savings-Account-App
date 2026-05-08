@@ -109,13 +109,13 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
-  textValue,
+  label,
   ...props
-}: SelectPrimitive.Item.Props & { textValue?: string }) {
+}: SelectPrimitive.Item.Props & { label?: string }) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
-      textValue={textValue}
+      label={label}
       className={cn(
         "relative flex w-full cursor-default items-center gap-1.5 rounded-lg py-2.5 pr-8 pl-3 text-sm outline-none select-none transition-colors hover:bg-gray-50 focus:bg-blue-50 focus:text-blue-700 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className

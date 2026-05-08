@@ -353,7 +353,7 @@ export default function App() {
                             <SelectContent>
                               <SelectItem value="all">All Owners</SelectItem>
                               {owners.map(owner => (
-                                <SelectItem key={owner} value={owner} textValue={owner}>{owner}</SelectItem>
+                                <SelectItem key={owner} value={owner} label={owner}>{owner}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -367,7 +367,7 @@ export default function App() {
                             <SelectContent>
                               <SelectItem value="all">All Banks</SelectItem>
                               {banks.map(bank => (
-                                <SelectItem key={bank} value={bank} textValue={bank}>{bank}</SelectItem>
+                                <SelectItem key={bank} value={bank} label={bank}>{bank}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -508,8 +508,8 @@ export default function App() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="balance">Sort: Balance</SelectItem>
-                            <SelectItem value="name">Sort: Owner</SelectItem>
+                          <SelectItem value="balance" label="Sort: Balance">Sort: Balance</SelectItem>
+                          <SelectItem value="name" label="Sort: Owner">Sort: Owner</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -745,9 +745,9 @@ export default function App() {
                 <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="RON">RON</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="RON" label="RON">RON</SelectItem>
+                    <SelectItem value="EUR" label="EUR">EUR</SelectItem>
+                    <SelectItem value="USD" label="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -779,9 +779,9 @@ export default function App() {
               <Select value={newTx.type} onValueChange={(v: string) => setNewTx({...newTx, type: v})}>
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DEPOSIT">Deposit</SelectItem>
-                  <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
-                  <SelectItem value="TRANSFER">Transfer</SelectItem>
+                  <SelectItem value="DEPOSIT" label="Deposit">Deposit</SelectItem>
+                  <SelectItem value="WITHDRAWAL" label="Withdrawal">Withdrawal</SelectItem>
+                  <SelectItem value="TRANSFER" label="Transfer">Transfer</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -791,7 +791,7 @@ export default function App() {
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
                   {accounts.map(acc => (
-                    <SelectItem key={acc.id} value={acc.id.toString()} textValue={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={acc.id.toString()} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -804,7 +804,7 @@ export default function App() {
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
                     {accounts.filter(a => a.id.toString() !== newTx.account_id).map(acc => (
-                      <SelectItem key={acc.id} value={acc.id.toString()} textValue={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                      <SelectItem key={acc.id} value={acc.id.toString()} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
