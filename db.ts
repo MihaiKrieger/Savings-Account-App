@@ -1,6 +1,19 @@
+import 'dotenv/config';
 import Database from 'better-sqlite3';
+import fs from 'fs';
+import path from 'path';
 
-const db = new Database('savings.db');
+const dbPath = process.env.DATABASE_URL 
+  ? process.env.DATABASE_URL.replace('file:', '') 
+  : 'savings.db';
+
+// Ensure directory exists if path contains '/'
+const dbDir = path.dirname(dbPath);
+if (dbDir !== '.' && !fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const db = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');

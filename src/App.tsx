@@ -246,8 +246,8 @@ export default function App() {
     return acc;
   }, {} as Record<string, number>);
 
-  const owners = Array.from(new Set(accounts.map(a => a.owner))).sort();
-  const banks = Array.from(new Set(accounts.map(a => a.bank_name))).sort();
+  const owners = Array.from(new Set(accounts.map(a => a.owner))).sort() as string[];
+  const banks = Array.from(new Set(accounts.map(a => a.bank_name))).sort() as string[];
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden">
@@ -260,7 +260,7 @@ export default function App() {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <Wallet className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold tracking-tight text-lg italic">SaverFlow</span>
+            <span className="font-bold tracking-tight text-lg italic">Econosmishu</span>
           </div>
         </div>
 
@@ -285,17 +285,7 @@ export default function App() {
           />
         </nav>
 
-        <div className="mt-auto p-4 border-t border-gray-50">
-          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs">
-              {accounts[0]?.owner.substring(0, 2).toUpperCase() || 'SA'}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-medium truncate">{accounts[0]?.owner || 'User'}</p>
-              <p className="text-[10px] text-gray-500 uppercase tracking-tighter">Savings Pro</p>
-            </div>
-          </div>
-        </div>
+
       </aside>
 
       {/* Main Content Area */}
