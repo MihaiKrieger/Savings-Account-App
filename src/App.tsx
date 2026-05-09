@@ -11,7 +11,9 @@ import {
   Wallet,
   Building2,
   Trash2,
-  Pencil
+  Pencil,
+  Check,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -46,10 +48,21 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedOwner, setSelectedOwner] = useState('all');
+  const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
   const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name'>('balance');
+
+  const toggleOwner = (owner: string) => {
+    setSelectedOwners(prev => {
+      if (prev.includes(owner)) {
+        return prev.filter(o => o !== owner);
+      } else {
+        return [...prev, owner];
+      }
+    });
+  };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [chartView, setChartView] = useState<'bar' | 'line'>('bar');
 
@@ -129,7 +142,7 @@ export default function App() {
       const res = await fetch('/api/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newAccount)
+        body: JSON.stringify({ ...newAccount, initial_balance: 0 })
       });
       if (res.ok) {
         toast.success('Account created successfully');
@@ -201,7 +214,7 @@ export default function App() {
   const getChartData = () => {
     const currencies = ['RON', 'EUR'] as const;
     const filteredAccounts = accounts.filter(a => {
-      const matchesOwner = selectedOwner === 'all' || a.owner === selectedOwner;
+      const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(a.owner);
       const matchesBank = selectedBank === 'all' || a.bank_name === selectedBank;
       return matchesOwner && matchesBank;
     });
@@ -220,7 +233,7 @@ export default function App() {
         .filter(ana => {
           const acc = accounts.find(a => a.id === ana.account_id);
           if (!acc || acc.currency !== curr) return false;
-          const matchesOwner = selectedOwner === 'all' || acc.owner === selectedOwner;
+          const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(acc.owner);
           const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
           return matchesOwner && matchesBank && new Date(ana.day).getTime() < yearStartTime;
         })
@@ -233,7 +246,7 @@ export default function App() {
     const periodAnalytics = analytics.filter(ana => {
       const acc = accounts.find(a => a.id === ana.account_id);
       if (!acc) return false;
-      const matchesOwner = selectedOwner === 'all' || acc.owner === selectedOwner;
+      const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(acc.owner);
       const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
       if (!(matchesOwner && matchesBank)) return false;
 
@@ -300,7 +313,7 @@ export default function App() {
   const years = Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse();
 
   const filteredAccountsForStats = accounts.filter(a => {
-    const matchesOwner = selectedOwner === 'all' || a.owner === selectedOwner;
+    const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(a.owner);
     const matchesBank = selectedBank === 'all' || a.bank_name === selectedBank;
     return matchesOwner && matchesBank;
   });
@@ -412,19 +425,59 @@ export default function App() {
                                 </SelectContent>
                               </Select>
                            </div>
-                           <div className="flex items-center gap-2">
+                           <div className="flex items-center gap-2 relative">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Owner:</span>
-                              <Select value={selectedOwner} onValueChange={setSelectedOwner}>
-                                <SelectTrigger className="w-[120px] h-8 bg-white border-gray-100 shadow-sm text-[11px] font-medium rounded-md">
-                                  <SelectValue placeholder="All Owners" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Owners</SelectItem>
-                                  {owners.map(owner => (
-                                    <SelectItem key={owner} value={owner} label={owner}>{owner}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setIsOwnerFilterOpen(!isOwnerFilterOpen)}
+                                  className="flex items-center justify-between w-[130px] h-8 bg-white border border-gray-100 shadow-sm px-3 text-[11px] font-medium rounded-md hover:bg-gray-50 transition-colors shrink-0"
+                                >
+                                  <span className="truncate max-w-[90px]">
+                                    {selectedOwners.length === 0 ? 'All Owners' : 
+                                     selectedOwners.length === 1 ? selectedOwners[0] : 
+                                     `${selectedOwners.length} Selected`}
+                                  </span>
+                                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${isOwnerFilterOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                
+                                {isOwnerFilterOpen && (
+                                  <>
+                                    <div 
+                                      className="fixed inset-0 z-40" 
+                                      onClick={() => setIsOwnerFilterOpen(false)}
+                                    />
+                                    <div className="absolute top-full left-0 mt-1 w-[160px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
+                                      <button 
+                                        className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                        onClick={() => {
+                                          setSelectedOwners([]);
+                                          setIsOwnerFilterOpen(false);
+                                        }}
+                                      >
+                                        <div className="w-4 h-4 flex items-center justify-center">
+                                          {selectedOwners.length === 0 && <Check size={12} className="text-blue-600" />}
+                                        </div>
+                                        <span className={selectedOwners.length === 0 ? 'font-bold text-blue-600' : ''}>All Owners</span>
+                                      </button>
+                                      
+                                      <div className="h-px bg-gray-100 my-1" />
+                                      
+                                      {owners.map(owner => (
+                                        <button 
+                                          key={owner}
+                                          className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                          onClick={() => toggleOwner(owner)}
+                                        >
+                                          <div className="w-4 h-4 flex items-center justify-center border border-gray-200 rounded-sm bg-gray-50">
+                                            {selectedOwners.includes(owner) && <Check size={12} className="text-blue-600" />}
+                                          </div>
+                                          <span className={selectedOwners.includes(owner) ? 'font-bold text-blue-600' : ''}>{owner}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                            </div>
                            <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Bank:</span>
@@ -930,21 +983,15 @@ export default function App() {
                 <Input required className="bg-white border-gray-200" value={newAccount.name} onChange={e => setNewAccount({...newAccount, name: e.target.value})} placeholder="Emergency Fund" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
-                  <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RON" label="RON">RON</SelectItem>
-                    <SelectItem value="EUR" label="EUR">EUR</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Initial Balance</Label>
-                <Input type="number" step="0.01" className="bg-white border-gray-200" value={isNaN(newAccount.initial_balance) ? '' : newAccount.initial_balance} onChange={e => setNewAccount({...newAccount, initial_balance: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
-              </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
+                <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="RON" label="RON">RON</SelectItem>
+                  <SelectItem value="EUR" label="EUR">EUR</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Description (Optional)</Label>
