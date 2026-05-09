@@ -61,13 +61,75 @@ db.exec(`
   );
 `);
 
-// Seed initial account if empty
+// Seed initial accounts if empty
 const count = db.prepare('SELECT count(*) as count FROM accounts').get() as { count: number };
 if (count.count === 0) {
-  db.prepare(`
-    INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance)
-    VALUES ('Mihai', 'Main Bank', 'Primary Savings', 'Main savings account', 'RON', 1000, 1000)
-  `).run();
+  const accountsData = [
+    { owner: 'Mihai', bank_name: 'Main Bank', name: 'Primary Savings', description: 'Main savings account', currency: 'RON', initial_balance: 5000, current_balance: 5000, due_date: '2026-12-31' },
+    { owner: 'Mihai', bank_name: 'Revolut', name: 'Digital Wallet', description: 'Daily expenses and subscriptions', currency: 'RON', initial_balance: 1200, current_balance: 1200, due_date: null },
+    { owner: 'Elena', bank_name: 'ING Romania', name: 'Family Savings', description: 'Shared family emergency fund', currency: 'RON', initial_balance: 8500, current_balance: 8500, due_date: '2026-06-15' },
+    { owner: 'Elena', bank_name: 'BT (Banca Transilvania)', name: 'EUR Holidays', description: 'Vacation and travel fund', currency: 'EUR', initial_balance: 2000, current_balance: 2000, due_date: '2026-07-20' },
+    { owner: 'Mihai', bank_name: 'Wise', name: 'Global Investment', description: 'International investment portofolio', currency: 'EUR', initial_balance: 4500, current_balance: 4500, due_date: '2027-01-10' }
+  ];
+
+  const insertAccount = db.prepare(`
+    INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, due_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const accountIds: number[] = [];
+  accountsData.forEach(acc => {
+    const info = insertAccount.run(acc.owner, acc.bank_name, acc.name, acc.description, acc.currency, acc.initial_balance, acc.current_balance, acc.due_date);
+    accountIds.push(info.lastInsertRowid as number);
+  });
+
+  // Add some initial transactions to populate charts
+  const insertTx = db.prepare(`
+    INSERT INTO transactions (account_id, type, amount, currency, description, date)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  const updateBalance = (id: number, amount: number, type: 'DEPOSIT' | 'WITHDRAWAL') => {
+    if (type === 'DEPOSIT') {
+      db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount, id);
+    } else {
+      db.prepare('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?').run(amount, id);
+    }
+  };
+
+  const now = new Date();
+  
+  // Account 1: Primary Savings growth
+  for (let i = 25; i >= 0; i -= 5) {
+    const txDate = new Date(now);
+    txDate.setDate(now.getDate() - i);
+    const amount = 500 + Math.random() * 200;
+    insertTx.run(accountIds[0], 'DEPOSIT', amount, 'RON', 'Monthly Contribution', txDate.toISOString());
+    updateBalance(accountIds[0], amount, 'DEPOSIT');
+  }
+
+  // Account 2: Revolut activity
+  for (let i = 20; i >= 0; i -= 3) {
+    const txDate = new Date(now);
+    txDate.setDate(now.getDate() - i);
+    const isWithdrawal = Math.random() > 0.4;
+    const amount = 50 + Math.random() * 150;
+    const type = isWithdrawal ? 'WITHDRAWAL' : 'DEPOSIT';
+    insertTx.run(accountIds[1], type, amount, 'RON', isWithdrawal ? 'Supermarket' : 'Pocket money', txDate.toISOString());
+    updateBalance(accountIds[1], amount, type);
+  }
+
+  // Account 3: Family Savings
+  const bonusDate = new Date(now);
+  bonusDate.setDate(now.getDate() - 15);
+  insertTx.run(accountIds[2], 'DEPOSIT', 2500, 'RON', 'Annual Bonus', bonusDate.toISOString());
+  updateBalance(accountIds[2], 2500, 'DEPOSIT');
+
+  // Account 4: EUR Holiday growth
+  const holidayDate = new Date(now);
+  holidayDate.setDate(now.getDate() - 10);
+  insertTx.run(accountIds[3], 'DEPOSIT', 300, 'EUR', 'Holiday savings', holidayDate.toISOString());
+  updateBalance(accountIds[3], 300, 'DEPOSIT');
 }
 
 export default db;
