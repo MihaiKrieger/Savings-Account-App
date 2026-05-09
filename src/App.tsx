@@ -65,6 +65,8 @@ export default function App() {
   };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [chartView, setChartView] = useState<'bar' | 'line'>('bar');
+  const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance'>('balance');
+  const [accountsSortOrder, setAccountsSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Form states
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -757,7 +759,6 @@ export default function App() {
                             if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
                             return a.owner.localeCompare(b.owner);
                           })
-                          .slice(0, 4)
                           .map(acc => (
                           <div key={acc.id} className="flex gap-3 group cursor-pointer" onClick={() => setActiveTab('accounts')}>
                             <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
@@ -789,71 +790,125 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Your Accounts</h1>
                     <p className="text-gray-500 text-sm mt-1">Manage connection details and specific descriptions.</p>
                   </div>
-                  <Button onClick={() => setIsAddAccountOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg">
-                    <Plus className="mr-2 h-4 w-4" /> Add Account
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Sort By:</span>
+                       <Select value={accountsSortField} onValueChange={(v: any) => setAccountsSortField(v)}>
+                         <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="balance">Balance</SelectItem>
+                           <SelectItem value="owner">Owner</SelectItem>
+                           <SelectItem value="bank">Bank</SelectItem>
+                           <SelectItem value="currency">Currency</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <Select value={accountsSortOrder} onValueChange={(v: any) => setAccountsSortOrder(v)}>
+                         <SelectTrigger className="w-[100px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="desc">High-Low</SelectItem>
+                           <SelectItem value="asc">Low-High</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
+                    <Button onClick={() => setIsAddAccountOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg h-9">
+                      <Plus className="mr-2 h-4 w-4" /> Add Account
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {accounts.map((acc) => (
-                    <Card key={acc.id} className="shadow-sm hover:shadow-md transition-all border-[#E5E7EB] rounded-xl overflow-hidden group">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                            <Building2 size={24} />
-                          </div>
-                          <div className="flex gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-gray-400 hover:text-blue-600"
-                              onClick={() => {
-                                setEditingAccount(acc);
-                                setIsEditAccountOpen(true);
-                              }}
-                            >
-                              <Pencil size={14} />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-gray-400 hover:text-red-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAccountToDelete(acc);
-                                setIsDeleteConfirmOpen(true);
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <CardTitle className="text-base font-bold">{acc.name}</CardTitle>
-                          <CardDescription className="text-xs uppercase tracking-wider">{acc.bank_name} • {acc.owner}</CardDescription>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="mt-2">
-                          <p className="text-2xl font-bold tracking-tight text-[#111827]">
-                            {formatCurrency(acc.current_balance, acc.currency)}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-2 line-clamp-2 min-h-[2.5rem] italic">
-                            {acc.description || 'Financial pillar for long-term security.'}
-                          </p>
-                        </div>
-                      </CardContent>
-                      <div className="px-6 py-3 bg-gray-50/50 border-t border-gray-50 flex items-center gap-2">
-                        <div className={`w-1.5 h-1.5 rounded-full ${acc.current_balance > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{acc.currency} Active</span>
-                      </div>
-                    </Card>
-                  ))}
+                <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50/50 border-b border-gray-100">
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account & Bank</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Owner</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Balance</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {accounts
+                          .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
+                          .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                          .sort((a, b) => {
+                            let comparison = 0;
+                            if (accountsSortField === 'balance') comparison = a.current_balance - b.current_balance;
+                            else if (accountsSortField === 'owner') comparison = a.owner.localeCompare(b.owner);
+                            else if (accountsSortField === 'bank') comparison = a.bank_name.localeCompare(b.bank_name);
+                            else if (accountsSortField === 'currency') comparison = a.currency.localeCompare(b.currency);
+                            
+                            return accountsSortOrder === 'desc' ? -comparison : comparison;
+                          })
+                          .map((acc) => (
+                          <tr key={acc.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
+                                  <Building2 size={16} />
+                                </div>
+                                <div>
+                                  <div className="text-sm font-bold text-gray-900 leading-none mb-1">{acc.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{acc.bank_name}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{acc.owner}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${acc.current_balance > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{acc.currency}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <span className="text-sm font-bold text-gray-900">{formatCurrency(acc.current_balance, acc.currency)}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                                  onClick={() => {
+                                    setEditingAccount(acc);
+                                    setIsEditAccountOpen(true);
+                                  }}
+                                >
+                                  <Pencil size={12} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAccountToDelete(acc);
+                                    setIsDeleteConfirmOpen(true);
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -1028,7 +1083,7 @@ export default function App() {
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
                   {accounts.map(acc => (
-                    <SelectItem key={acc.id} value={String(acc.id)} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner} - ${acc.name}`}>[{acc.owner}] {acc.name} ({acc.bank_name})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1041,7 +1096,7 @@ export default function App() {
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
                     {accounts.filter(a => String(a.id) !== String(newTx.account_id)).map(acc => (
-                      <SelectItem key={acc.id} value={String(acc.id)} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner} - ${acc.name}`}>[{acc.owner}] {acc.name} ({acc.bank_name})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
