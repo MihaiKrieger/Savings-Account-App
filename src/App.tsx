@@ -41,6 +41,8 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+const APP_VERSION = '1.1.1';
+
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -365,7 +367,12 @@ export default function App() {
           />
         </nav>
 
-
+        <div className="mt-auto p-6 border-t border-gray-50">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">v{APP_VERSION}</span>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content Area */}
