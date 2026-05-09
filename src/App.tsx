@@ -44,7 +44,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.4.6';
+const APP_VERSION = '1.4.7';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -890,6 +890,7 @@ export default function App() {
                           .filter(a => a.is_active)
                           .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
                           .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                          .filter(a => searchQuery === '' || a.name.toLowerCase().includes(searchQuery.toLowerCase()))
                           .sort((a, b) => {
                             let comparison = 0;
                             if (accountsSortField === 'balance') comparison = a.current_balance - b.current_balance;
@@ -981,6 +982,7 @@ export default function App() {
                               .filter(a => !a.is_active)
                               .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
                               .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                              .filter(a => searchQuery === '' || a.name.toLowerCase().includes(searchQuery.toLowerCase()))
                               .sort((a, b) => b.current_balance - a.current_balance) // Simple sort for inactive
                               .map((acc) => (
                               <tr key={acc.id} className="hover:bg-gray-100/50 transition-colors group opacity-70">
