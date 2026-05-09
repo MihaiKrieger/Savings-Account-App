@@ -41,7 +41,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.2.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1033,7 +1033,14 @@ export default function App() {
           <form onSubmit={handleAddAccount} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>Owner Name</Label>
-              <Input required className="bg-white border-gray-200" value={newAccount.owner} onChange={e => setNewAccount({...newAccount, owner: e.target.value})} placeholder="e.g. John Doe" />
+              <Input 
+                required 
+                className="bg-white border-gray-200" 
+                value={newAccount.owner} 
+                onChange={e => setNewAccount({...newAccount, owner: e.target.value})} 
+                placeholder="e.g. John Doe"
+                list="owners-list"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1167,7 +1174,12 @@ export default function App() {
             <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label>Owner Name</Label>
-                <Input required value={editingAccount.owner} onChange={e => setEditingAccount({...editingAccount, owner: e.target.value})} />
+                <Input 
+                  required 
+                  value={editingAccount.owner} 
+                  onChange={e => setEditingAccount({...editingAccount, owner: e.target.value})}
+                  list="owners-list"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Bank Name</Label>
@@ -1188,6 +1200,12 @@ export default function App() {
           )}
         </DialogContent>
       </Dialog>
+      
+      <datalist id="owners-list">
+        {owners.map(owner => (
+          <option key={owner} value={owner} />
+        ))}
+      </datalist>
     </div>
   );
 }
