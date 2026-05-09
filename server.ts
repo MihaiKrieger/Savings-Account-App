@@ -27,12 +27,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   });
 
   app.post('/api/accounts', (req, res) => {
-    const { owner, bank_name, name, description, currency, initial_balance, is_active } = req.body;
+    const { owner, bank_name, name, description, currency, initial_balance, is_active, due_date } = req.body;
     try {
       const info = db.prepare(`
-        INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, is_active)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(owner, bank_name, name, description, currency, initial_balance, initial_balance, is_active === false ? 0 : 1);
+        INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, is_active, due_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(owner, bank_name, name, description, currency, initial_balance, initial_balance, is_active === false ? 0 : 1, due_date || null);
       
       const newAccount = db.prepare('SELECT * FROM accounts WHERE id = ?').get(info.lastInsertRowid);
       res.status(201).json(newAccount);
@@ -43,12 +43,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.put('/api/accounts/:id', (req, res) => {
     const { id } = req.params;
-    const { owner, bank_name, name, description, is_active } = req.body;
+    const { owner, bank_name, name, description, is_active, due_date } = req.body;
     try {
       db.prepare(`
-        UPDATE accounts SET owner = ?, bank_name = ?, name = ?, description = ?, is_active = ?
+        UPDATE accounts SET owner = ?, bank_name = ?, name = ?, description = ?, is_active = ?, due_date = ?
         WHERE id = ?
-      `).run(owner, bank_name, name, description, is_active === false ? 0 : 1, id);
+      `).run(owner, bank_name, name, description, is_active === false ? 0 : 1, due_date || null, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Failed to update account' });

@@ -10,6 +10,7 @@ export interface Account {
   initial_balance: number;
   current_balance: number;
   is_active: boolean;
+  due_date?: string;
   created_at: string;
 }
 

@@ -13,7 +13,10 @@ import {
   Trash2,
   Pencil,
   Check,
-  ChevronDown
+  ChevronDown,
+  CalendarDays,
+  Filter,
+  Banknote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -41,7 +44,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.3.3';
+const APP_VERSION = '1.4.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -54,7 +57,7 @@ export default function App() {
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
-  const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name'>('balance');
+  const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name' | 'due_date'>('balance');
 
   const toggleOwner = (owner: string) => {
     setSelectedOwners(prev => {
@@ -85,7 +88,8 @@ export default function App() {
     description: '',
     currency: 'RON' as Currency,
     initial_balance: 0,
-    is_active: true
+    is_active: true,
+    due_date: ''
   });
 
   const handleEditAccount = async (e: React.FormEvent) => {
@@ -152,7 +156,7 @@ export default function App() {
       if (res.ok) {
         toast.success('Account created successfully');
         setIsAddAccountOpen(false);
-        setNewAccount({ owner: '', bank_name: '', name: '', description: '', currency: 'RON', initial_balance: 0, is_active: true });
+        setNewAccount({ owner: '', bank_name: '', name: '', description: '', currency: 'RON', initial_balance: 0, is_active: true, due_date: '' });
         fetchData();
       }
     } catch (error) {
@@ -206,9 +210,25 @@ export default function App() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string, format: 'short' | 'long' = 'short') => {
     const d = new Date(dateStr);
+    if (format === 'long') {
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
     return d.toLocaleDateString('en-GB'); // dd/mm/yyyy
+  };
+
+  const getDueDateTheme = (dateStr: string) => {
+    const dueDate = new Date(dateStr);
+    const now = new Date();
+    
+    // Difference in months
+    const diffTime = dueDate.getTime() - now.getTime();
+    const diffMonths = diffTime / (1000 * 60 * 60 * 24 * 30.44);
+    
+    if (diffMonths < 2) return "bg-red-50 text-red-600 border-red-100/50";
+    if (diffMonths < 3) return "bg-amber-50 text-amber-600 border-amber-100/50";
+    return "bg-blue-50 text-blue-600 border-blue-100/50";
   };
 
   const formatCurrency = (amount: number, currency: string) => {
@@ -752,7 +772,7 @@ export default function App() {
                         </h2>
                         <Select 
                           value={dashboardAccountSort} 
-                          onValueChange={(v: 'balance' | 'name') => setDashboardAccountSort(v)}
+                          onValueChange={(v: 'balance' | 'name' | 'due_date') => setDashboardAccountSort(v)}
                         >
                           <SelectTrigger className="h-7 w-[110px] text-[10px] border-none bg-gray-50 shadow-none">
                             <SelectValue />
@@ -760,6 +780,7 @@ export default function App() {
                           <SelectContent>
                           <SelectItem value="balance" label="Sort: Balance">Sort: Balance</SelectItem>
                           <SelectItem value="name" label="Sort: Owner">Sort: Owner</SelectItem>
+                          <SelectItem value="due_date" label="Sort: Due Date">Sort: Due Date</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -768,16 +789,29 @@ export default function App() {
                           .filter(a => a.is_active)
                           .sort((a,b) => {
                             if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
+                            if (dashboardAccountSort === 'due_date') {
+                              if (!a.due_date) return 1;
+                              if (!b.due_date) return -1;
+                              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                            }
                             return a.owner.localeCompare(b.owner);
                           })
                           .map(acc => (
                           <div key={acc.id} className="flex gap-3 group cursor-pointer" onClick={() => setActiveTab('accounts')}>
                             <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
                             <div className="flex-1">
-                              <p className="text-xs text-gray-800 font-semibold group-hover:text-blue-600 transition-colors">{acc.name}</p>
-                              <div className="flex justify-between items-center mt-0.5">
-                                <p className="text-[10px] text-gray-400 uppercase">{acc.bank_name}</p>
-                                <p className="text-xs font-bold">{formatCurrency(acc.current_balance, acc.currency)}</p>
+                              <div className="flex justify-between items-start">
+                                <p className="text-xs text-gray-800 font-semibold group-hover:text-blue-600 transition-colors uppercase tracking-tight">{acc.name}</p>
+                                <p className="text-xs font-bold whitespace-nowrap">{formatCurrency(acc.current_balance, acc.currency)}</p>
+                              </div>
+                              <div className="flex justify-between items-center mt-1">
+                                <p className="text-[10px] text-gray-400 uppercase font-medium">{acc.bank_name}</p>
+                                {acc.due_date && (
+                                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${getDueDateTheme(acc.due_date)}`}>
+                                    <CalendarDays size={10} />
+                                    <span className="text-[9px] font-bold whitespace-nowrap">{formatDate(acc.due_date, 'long')}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -845,6 +879,7 @@ export default function App() {
                         <tr className="bg-gray-50/50 border-b border-gray-100">
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Accounts</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Owner</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Due Date</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Balance</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
@@ -879,6 +914,15 @@ export default function App() {
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{acc.owner}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              {acc.due_date ? (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${getDueDateTheme(acc.due_date)}`}>
+                                  {formatDate(acc.due_date, 'long')}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-gray-300">—</span>
+                              )}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               <div className="flex flex-col items-center justify-center gap-1">
@@ -927,7 +971,7 @@ export default function App() {
                         <>
                           <thead className="bg-gray-50/80 border-t border-b border-gray-100">
                             <tr>
-                              <th colSpan={5} className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                              <th colSpan={6} className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">
                                 Inactive Accounts
                               </th>
                             </tr>
@@ -953,6 +997,9 @@ export default function App() {
                                 </td>
                                 <td className="px-4 py-2.5 text-center">
                                   <span className="text-[10px] font-medium text-gray-400 bg-gray-100/50 px-2 py-0.5 rounded-full">{acc.owner}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="text-[10px] text-gray-300">—</span>
                                 </td>
                                 <td className="px-4 py-2.5 text-center">
                                   <div className="flex flex-col items-center justify-center">
@@ -1146,6 +1193,10 @@ export default function App() {
               <Label>Description (Optional)</Label>
               <Input className="rounded-lg bg-white border-gray-200" value={newAccount.description} onChange={e => setNewAccount({...newAccount, description: e.target.value})} />
             </div>
+            <div className="space-y-2">
+              <Label>Due Date (Optional)</Label>
+              <Input type="date" className="rounded-lg bg-white border-gray-200" value={newAccount.due_date} onChange={e => setNewAccount({...newAccount, due_date: e.target.value})} />
+            </div>
             <DialogFooter>
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Create Account</Button>
             </DialogFooter>
@@ -1272,6 +1323,10 @@ export default function App() {
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Input required className="rounded-lg bg-white border-gray-200" value={editingAccount.description} onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Due Date (Optional)</Label>
+                <Input type="date" className="rounded-lg bg-white border-gray-200" value={editingAccount.due_date || ''} onChange={e => setEditingAccount({...editingAccount, due_date: e.target.value})} />
               </div>
               <div 
                 className="flex items-center gap-2 pt-2 cursor-pointer" 

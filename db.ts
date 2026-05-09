@@ -30,6 +30,7 @@ db.exec(`
     initial_balance REAL DEFAULT 0,
     current_balance REAL DEFAULT 0,
     is_active INTEGER DEFAULT 1,
+    due_date TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
@@ -38,6 +39,9 @@ db.exec(`
 const tableInfo = db.prepare("PRAGMA table_info(accounts)").all() as any[];
 if (!tableInfo.some(col => (col as any).name === 'is_active')) {
   db.exec("ALTER TABLE accounts ADD COLUMN is_active INTEGER DEFAULT 1");
+}
+if (!tableInfo.some(col => (col as any).name === 'due_date')) {
+  db.exec("ALTER TABLE accounts ADD COLUMN due_date TEXT");
 }
 
 db.exec(`
