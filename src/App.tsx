@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, 
+  LineChart as LineChartIcon,
   CreditCard, 
   History, 
   LayoutDashboard, 
@@ -28,16 +29,14 @@ import { Account, Transaction, Currency, AnalyticsData } from './types';
 import { 
   BarChart, 
   Bar, 
+  LineChart,
+  Line,
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
   Legend, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  AreaChart,
-  Area
+  ResponsiveContainer
 } from 'recharts';
 
 export default function App() {
@@ -49,7 +48,10 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwner, setSelectedOwner] = useState('all');
   const [selectedBank, setSelectedBank] = useState('all');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
   const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name'>('balance');
+  const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [chartView, setChartView] = useState<'bar' | 'line'>('bar');
 
   // Form states
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -91,8 +93,8 @@ export default function App() {
     to_account_id: '',
     type: 'DEPOSIT',
     amount: 0,
-    interest: 0,
-    description: ''
+    description: '',
+    date: new Date().toISOString().split('T')[0]
   });
 
   const fetchData = async () => {
@@ -151,13 +153,20 @@ export default function App() {
           account_id: parseInt(newTx.account_id),
           to_account_id: newTx.to_account_id ? parseInt(newTx.to_account_id) : null,
           amount: parseFloat(newTx.amount.toString()),
-          interest: parseFloat(newTx.interest.toString())
+          date: newTx.date
         })
       });
       if (res.ok) {
         toast.success('Transaction processed');
         setIsTransactionOpen(false);
-        setNewTx({ account_id: '', to_account_id: '', type: 'DEPOSIT', amount: 0, interest: 0, description: '' });
+        setNewTx({ 
+          account_id: '', 
+          to_account_id: '', 
+          type: 'DEPOSIT', 
+          amount: 0, 
+          description: '',
+          date: new Date().toISOString().split('T')[0]
+        });
         fetchData();
       }
     } catch (error) {
@@ -179,61 +188,116 @@ export default function App() {
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB'); // dd/mm/yyyy
+  };
+
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('ro-RO', { style: 'currency', currency }).format(amount);
   };
 
   // Prepare Chart Data
   const getChartData = () => {
+    const currencies = ['RON', 'EUR'] as const;
     const filteredAccounts = accounts.filter(a => {
       const matchesOwner = selectedOwner === 'all' || a.owner === selectedOwner;
       const matchesBank = selectedBank === 'all' || a.bank_name === selectedBank;
       return matchesOwner && matchesBank;
     });
-    
-    const filteredAnalytics = analytics.filter(ana => {
+
+    // 1. Calculate starting balances (balances before the selected period)
+    const startBalances: Record<string, number> = { RON: 0, EUR: 0 };
+    const yearStartStr = selectedYear !== 'all' ? `${selectedYear}-01-01` : '1970-01-01';
+    const yearStartTime = new Date(yearStartStr).getTime();
+
+    currencies.forEach(curr => {
+      const initial = filteredAccounts
+        .filter(a => a.currency === curr)
+        .reduce((sum, a) => sum + a.initial_balance, 0);
+      
+      const changesBefore = analytics
+        .filter(ana => {
+          const acc = accounts.find(a => a.id === ana.account_id);
+          if (!acc || acc.currency !== curr) return false;
+          const matchesOwner = selectedOwner === 'all' || acc.owner === selectedOwner;
+          const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
+          return matchesOwner && matchesBank && new Date(ana.day).getTime() < yearStartTime;
+        })
+        .reduce((sum, ana) => sum + ana.change, 0);
+      
+      startBalances[curr] = initial + changesBefore;
+    });
+
+    // 2. Filter analytics for the selected period
+    const periodAnalytics = analytics.filter(ana => {
       const acc = accounts.find(a => a.id === ana.account_id);
       if (!acc) return false;
       const matchesOwner = selectedOwner === 'all' || acc.owner === selectedOwner;
       const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
-      return matchesOwner && matchesBank;
+      if (!(matchesOwner && matchesBank)) return false;
+
+      if (selectedYear === 'all') return true;
+      const year = new Date(ana.day).getFullYear().toString();
+      return year === selectedYear;
     });
 
-    // Group analytics by day and currency for the main chart
-    const dailyData: any = {};
-    const sortedData = [...filteredAnalytics].sort((a,b) => new Date(a.day).getTime() - new Date(b.day).getTime());
+    // 3. Group by day
+    const dailyChanges: Record<string, Record<string, number>> = {};
     
-    // We need to accumulate balances over time
-    const runningBalances: Record<string, number> = {};
+    // Ensure we have a data point for "Today" and potentially the start of the year
+    const today = new Date().toISOString().split('T')[0];
+    const currentYear = new Date().getFullYear().toString();
     
+    if (selectedYear === 'all' || selectedYear === currentYear) {
+      dailyChanges[today] = { RON: 0, EUR: 0 };
+    }
+    
+    if (selectedYear !== 'all') {
+      const startOfYear = `${selectedYear}-01-01`;
+      if (!dailyChanges[startOfYear]) dailyChanges[startOfYear] = { RON: 0, EUR: 0 };
+    }
+
+    periodAnalytics.forEach(ana => {
+      const day = ana.day;
+      if (!dailyChanges[day]) dailyChanges[day] = { RON: 0, EUR: 0 };
+      const acc = accounts.find(a => a.id === ana.account_id);
+      if (acc && (acc.currency === 'RON' || acc.currency === 'EUR')) {
+        dailyChanges[day][acc.currency] += ana.change;
+      }
+    });
+
+    const days = Object.keys(dailyChanges).sort();
+    
+    // 4. Build the result array
     const result: any[] = [];
-    const days = Array.from(new Set(sortedData.map(d => d.day)));
-    const currencies = ['RON', 'EUR', 'USD'];
+    let currentBalances = { ...startBalances };
+
+    if (days.length === 0 && selectedYear === 'all') {
+       // No transactions ever, just show today
+       result.push({
+         day: today,
+         ...currentBalances
+       });
+       return result;
+    }
 
     days.forEach(day => {
-      const dayPoint: any = { day };
       currencies.forEach(curr => {
-        const changes = sortedData.filter(d => d.day === day && d.currency === curr);
-        const totalChange = changes.reduce((sum, d) => sum + d.change, 0);
-        
-        // Find accounts of this currency and add their initial balance if this is the first day
-        if (!runningBalances[curr]) {
-          const initial = filteredAccounts
-            .filter(a => a.currency === curr)
-            .reduce((sum, a) => sum + a.initial_balance, 0);
-          runningBalances[curr] = initial;
-        }
-        
-        runningBalances[curr] += totalChange;
-        dayPoint[curr] = runningBalances[curr];
+        currentBalances[curr] += dailyChanges[day][curr] || 0;
       });
-      result.push(dayPoint);
+      result.push({
+        day,
+        ...currentBalances
+      });
     });
-    
+
     return result;
   };
 
   const chartData = getChartData();
+  
+  const years = Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse();
 
   const filteredAccountsForStats = accounts.filter(a => {
     const matchesOwner = selectedOwner === 'all' || a.owner === selectedOwner;
@@ -242,6 +306,7 @@ export default function App() {
   });
 
   const totalBalances = filteredAccountsForStats.reduce((acc, curr) => {
+    if (curr.currency as string === 'USD') return acc;
     acc[curr.currency] = (acc[curr.currency] || 0) + curr.current_balance;
     return acc;
   }, {} as Record<string, number>);
@@ -251,7 +316,7 @@ export default function App() {
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden">
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-center" richColors />
       
       {/* Sidebar Navigation */}
       <aside className="w-[240px] border-r border-[#E5E7EB] bg-white flex flex-col flex-shrink-0">
@@ -332,38 +397,50 @@ export default function App() {
                     <h1 className="text-2xl font-bold tracking-tight">Financial Overview</h1>
                     <p className="text-gray-500 text-sm mt-1">Real-time status of your global savings accounts.</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-4">
-                       <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase">Owner:</span>
-                          <Select value={selectedOwner} onValueChange={setSelectedOwner}>
-                            <SelectTrigger className="w-[140px] h-9 bg-white border-gray-100 shadow-sm text-xs font-medium">
-                              <SelectValue placeholder="All Owners" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Owners</SelectItem>
-                              {owners.map(owner => (
-                                <SelectItem key={owner} value={owner} label={owner}>{owner}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                       </div>
-                       <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-gray-400 uppercase">Bank:</span>
-                          <Select value={selectedBank} onValueChange={setSelectedBank}>
-                            <SelectTrigger className="w-[140px] h-9 bg-white border-gray-100 shadow-sm text-xs font-medium">
-                              <SelectValue placeholder="All Banks" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Banks</SelectItem>
-                              {banks.map(bank => (
-                                <SelectItem key={bank} value={bank} label={bank}>{bank}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                       </div>
-                    </div>
-                  </div>
+                        <div className="flex items-center gap-4">
+                           <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Year:</span>
+                              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                <SelectTrigger className="w-[100px] h-8 bg-white border-gray-100 shadow-sm text-[11px] font-medium rounded-md">
+                                  <SelectValue placeholder="All Years" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Time</SelectItem>
+                                  {years.map(year => (
+                                    <SelectItem key={year} value={year}>{year}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                           </div>
+                           <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Owner:</span>
+                              <Select value={selectedOwner} onValueChange={setSelectedOwner}>
+                                <SelectTrigger className="w-[120px] h-8 bg-white border-gray-100 shadow-sm text-[11px] font-medium rounded-md">
+                                  <SelectValue placeholder="All Owners" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Owners</SelectItem>
+                                  {owners.map(owner => (
+                                    <SelectItem key={owner} value={owner} label={owner}>{owner}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                           </div>
+                           <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Bank:</span>
+                              <Select value={selectedBank} onValueChange={setSelectedBank}>
+                                <SelectTrigger className="w-[120px] h-8 bg-white border-gray-100 shadow-sm text-[11px] font-medium rounded-md">
+                                  <SelectValue placeholder="All Banks" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Banks</SelectItem>
+                                  {banks.map(bank => (
+                                    <SelectItem key={bank} value={bank} label={bank}>{bank}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                           </div>
+                        </div>
                 </div>
 
                 {/* Stats Row */}
@@ -389,47 +466,163 @@ export default function App() {
                 <div className="grid grid-cols-12 gap-6 pb-8">
                   <div className="col-span-12 lg:col-span-8 space-y-6">
                     <Card className="shadow-sm border-gray-100 rounded-xl overflow-hidden">
-                      <CardHeader className="bg-gray-50/50 border-b border-gray-50 pb-4">
+                      <CardHeader className="bg-gray-50/30 border-b border-gray-100 pb-4">
                         <div className="flex justify-between items-center">
                           <div>
-                            <CardTitle className="text-lg">Portfolio Evolution</CardTitle>
-                            <CardDescription>Consolidated growth across currencies</CardDescription>
+                            <CardTitle className="text-base font-bold text-gray-800">Portfolio Evolution</CardTitle>
+                            <CardDescription className="text-xs">Growth across {selectedYear === 'all' ? 'all time' : selectedYear}</CardDescription>
+                          </div>
+                          <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button 
+                              onClick={() => setChartView('bar')}
+                              className={`p-1.5 rounded-md transition-all ${chartView === 'bar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                              title="Bar Chart"
+                            >
+                              <BarChart3 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => setChartView('line')}
+                              className={`p-1.5 rounded-md transition-all ${chartView === 'line' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                              title="Line Chart"
+                            >
+                              <LineChartIcon size={16} />
+                            </button>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="h-[350px] pt-6">
+                      <CardContent className="h-[380px] pt-8">
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chartData}>
-                            <defs>
-                              <linearGradient id="colorPrimary" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                            <XAxis 
-                              dataKey="day" 
-                              stroke="#9CA3AF" 
-                              fontSize={11} 
-                              tickLine={false} 
-                              axisLine={false} 
-                              tickFormatter={(str) => new Date(str).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            />
-                            <YAxis 
-                              stroke="#9CA3AF" 
-                              fontSize={11} 
-                              tickLine={false} 
-                              axisLine={false}
-                              tickFormatter={(val: number) => val > 1000 ? `${(val/1000).toFixed(0)}k` : val.toString()}
-                            />
-                            <Tooltip 
-                              contentStyle={{ borderRadius: '12px', border: '1px solid #E5E7EB', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }} 
-                            />
-                            <Legend iconType="circle" />
-                            <Area type="monotone" dataKey="RON" stroke="#2563EB" fillOpacity={1} fill="url(#colorPrimary)" strokeWidth={2} />
-                            <Area type="monotone" dataKey="EUR" stroke="#10B981" fillOpacity={0} strokeWidth={2} />
-                            <Area type="monotone" dataKey="USD" stroke="#6366F1" fillOpacity={0} strokeWidth={2} />
-                          </AreaChart>
+                          {chartView === 'bar' ? (
+                            <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                              <XAxis 
+                                dataKey="day" 
+                                stroke="#94A3B8" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false} 
+                                dy={10}
+                                tickFormatter={(str) => {
+                                  const date = new Date(str);
+                                  return date.toLocaleDateString('en-GB', { 
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: selectedYear === 'all' ? '2-digit' : 'numeric'
+                                  });
+                                }}
+                              />
+                              <YAxis 
+                                stroke="#94A3B8" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                dx={-10}
+                                tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
+                              />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  borderRadius: '12px', 
+                                  border: 'none', 
+                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                  fontSize: '12px',
+                                  padding: '12px'
+                                }} 
+                                itemStyle={{ padding: '2px 0' }}
+                                labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
+                                labelFormatter={(label) => {
+                                  const d = new Date(label);
+                                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="top" 
+                                align="right" 
+                                height={36} 
+                                iconType="circle" 
+                                iconSize={8}
+                                wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
+                              />
+                              <Bar 
+                                dataKey="RON" 
+                                fill="#F97316" 
+                                radius={[4, 4, 0, 0]}
+                                maxBarSize={40}
+                              />
+                              <Bar 
+                                dataKey="EUR" 
+                                fill="#2563EB" 
+                                radius={[4, 4, 0, 0]}
+                                maxBarSize={40}
+                              />
+                            </BarChart>
+                          ) : (
+                            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                              <XAxis 
+                                dataKey="day" 
+                                stroke="#94A3B8" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false} 
+                                dy={10}
+                                tickFormatter={(str) => {
+                                  const date = new Date(str);
+                                  return date.toLocaleDateString('en-GB', { 
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: selectedYear === 'all' ? '2-digit' : 'numeric'
+                                  });
+                                }}
+                              />
+                              <YAxis 
+                                stroke="#94A3B8" 
+                                fontSize={10} 
+                                tickLine={false} 
+                                axisLine={false}
+                                dx={-10}
+                                tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
+                              />
+                              <Tooltip 
+                                contentStyle={{ 
+                                  borderRadius: '12px', 
+                                  border: 'none', 
+                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                  fontSize: '12px',
+                                  padding: '12px'
+                                }} 
+                                itemStyle={{ padding: '2px 0' }}
+                                labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
+                                labelFormatter={(label) => {
+                                  const d = new Date(label);
+                                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                                }}
+                              />
+                              <Legend 
+                                verticalAlign="top" 
+                                align="right" 
+                                height={36} 
+                                iconType="circle" 
+                                iconSize={8}
+                                wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="RON" 
+                                stroke="#F97316" 
+                                strokeWidth={2.5} 
+                                dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
+                                activeDot={{ r: 6 }} 
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="EUR" 
+                                stroke="#2563EB" 
+                                strokeWidth={2.5} 
+                                dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
+                                activeDot={{ r: 6 }} 
+                              />
+                            </LineChart>
+                          )}
                         </ResponsiveContainer>
                       </CardContent>
                     </Card>
@@ -459,7 +652,9 @@ export default function App() {
                               <TableRow key={tx.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4">
                                   <p className="text-sm font-medium">{tx.description || 'System Entry'}</p>
-                                  <p className="text-[10px] text-gray-400 uppercase">{new Date(tx.date).toLocaleDateString()}</p>
+                                  <p className="text-[10px] text-gray-400 uppercase">
+                                    {formatDate(tx.date)}
+                                  </p>
                                 </td>
                                 <td className="py-4">
                                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -528,15 +723,6 @@ export default function App() {
                       </Button>
                     </div>
 
-                    <div className="bg-blue-600 rounded-xl p-6 text-white shadow-lg relative overflow-hidden group">
-                      <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500"></div>
-                      <h3 className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">Target Progress</h3>
-                      <p className="text-xl font-medium leading-tight mb-4">You're making great progress this month.</p>
-                      <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
-                        <div className="h-full w-2/3 bg-white rounded-full"></div>
-                      </div>
-                      <p className="text-[10px] mt-3 opacity-70">65% of your ideal savings buffer achieved.</p>
-                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -632,9 +818,23 @@ export default function App() {
                     <h1 className="text-2xl font-bold tracking-tight">Ledger Activity</h1>
                     <p className="text-gray-500 text-sm mt-1">Audit trail of all money movements.</p>
                   </div>
-                  <Button onClick={() => setIsTransactionOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg">
-                    <ArrowRightLeft className="mr-2 h-4 w-4" /> Log Transaction
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    <Select 
+                      value={txSortOrder} 
+                      onValueChange={(v: 'newest' | 'oldest') => setTxSortOrder(v)}
+                    >
+                      <SelectTrigger className="h-9 w-[130px] text-xs bg-white border-gray-200">
+                        <SelectValue placeholder="Sort" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest" label="Newest first">Newest first</SelectItem>
+                        <SelectItem value="oldest" label="Oldest first">Oldest first</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={() => setIsTransactionOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg">
+                      <ArrowRightLeft className="mr-2 h-4 w-4" /> Log Transaction
+                    </Button>
+                  </div>
                 </div>
 
                 <Card className="shadow-sm border-gray-100 rounded-xl overflow-hidden mb-8">
@@ -655,6 +855,12 @@ export default function App() {
                           tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           accounts.find(a => a.id === tx.account_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
                         )
+                        .sort((a, b) => {
+                          const timeA = new Date(a.date).getTime();
+                          const timeB = new Date(b.date).getTime();
+                          if (txSortOrder === 'newest') return timeB - timeA;
+                          return timeA - timeB;
+                        })
                         .map((tx) => {
                         const account = accounts.find(a => a.id === tx.account_id);
                         const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
@@ -680,7 +886,7 @@ export default function App() {
                             </TableCell>
                             <TableCell className="px-6 text-gray-600 text-sm font-normal truncate max-w-[200px]">{tx.description || 'Manual entry'}</TableCell>
                             <TableCell className="px-6 text-gray-400 text-[10px]">
-                              {new Date(tx.date).toLocaleDateString()} at {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatDate(tx.date)} at {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </TableCell>
                             <TableCell className={`px-6 text-right font-bold text-sm ${
                               tx.type === 'DEPOSIT' ? 'text-green-600' : 
@@ -689,11 +895,6 @@ export default function App() {
                             }`}>
                               {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '-' : '+'}
                               {formatCurrency(tx.amount, tx.currency)}
-                              {tx.interest > 0 && (
-                               <div className="text-[9px] text-gray-400 font-normal italic">
-                                 {tx.type === 'TRANSFER' ? 'Exc.' : 'Inc.'} {formatCurrency(tx.interest, tx.currency)} int.
-                               </div>
-                              )}
                             </TableCell>
                           </TableRow>
                         );
@@ -737,7 +938,6 @@ export default function App() {
                   <SelectContent>
                     <SelectItem value="RON" label="RON">RON</SelectItem>
                     <SelectItem value="EUR" label="EUR">EUR</SelectItem>
-                    <SelectItem value="USD" label="USD">USD</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -777,11 +977,11 @@ export default function App() {
             </div>
             <div className="space-y-2">
               <Label>{newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}</Label>
-              <Select value={newTx.account_id} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
+              <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
                   {accounts.map(acc => (
-                    <SelectItem key={acc.id} value={acc.id.toString()} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={String(acc.id)} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -790,31 +990,30 @@ export default function App() {
             {newTx.type === 'TRANSFER' && (
               <div className="space-y-2">
                 <Label>To Account</Label>
-                <Select value={newTx.to_account_id} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
+                <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
-                    {accounts.filter(a => a.id.toString() !== newTx.account_id).map(acc => (
-                      <SelectItem key={acc.id} value={acc.id.toString()} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
+                    {accounts.filter(a => String(a.id) !== String(newTx.account_id)).map(acc => (
+                      <SelectItem key={acc.id} value={String(acc.id)} label={acc.name}>{acc.name} ({acc.bank_name})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <Input type="number" step="0.01" required className="bg-white border-gray-200" value={isNaN(newTx.amount) ? '' : newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Interest (Optional)</Label>
-                <Input type="number" step="0.01" className="bg-white border-gray-200" value={isNaN(newTx.interest) ? '' : newTx.interest} onChange={e => setNewTx({...newTx, interest: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
-              </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input type="number" step="0.01" required className="bg-white border-gray-200" value={isNaN(newTx.amount) ? '' : newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
             </div>
             
             <div className="space-y-2">
               <Label>Description</Label>
               <Input className="rounded-lg bg-white border-gray-200" value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} placeholder="Monthly savings, coffee, etc." />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input type="date" className="rounded-lg bg-white border-gray-200" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} />
             </div>
 
             <DialogFooter>

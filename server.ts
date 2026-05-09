@@ -76,14 +76,16 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   });
 
   app.post('/api/transactions', (req, res) => {
-    const { account_id, type, amount, description, to_account_id, interest } = req.body;
+    const { account_id, type, amount, description, to_account_id, date } = req.body;
     
     const transaction = db.transaction(() => {
       // 1. Log Transaction
+      // If date is provided, use it, otherwise use CURRENT_TIMESTAMP (which is handled by the default value in schema if we omit it, but we can pass it here)
+      const txDate = date || new Date().toISOString();
       const info = db.prepare(`
-        INSERT INTO transactions (account_id, from_account_id, to_account_id, type, amount, currency, description, interest)
+        INSERT INTO transactions (account_id, from_account_id, to_account_id, type, amount, currency, description, date)
         SELECT ?, ?, ?, ?, ?, currency, ?, ? FROM accounts WHERE id = ?
-      `).run(account_id, type === 'TRANSFER' ? account_id : null, to_account_id || null, type, amount, description, interest || 0, account_id);
+      `).run(account_id, type === 'TRANSFER' ? account_id : null, to_account_id || null, type, amount, description, txDate, account_id);
 
       // 2. Update Balances
       if (type === 'DEPOSIT') {
@@ -93,8 +95,8 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
       } else if (type === 'TRANSFER') {
         // Subtract from source
         db.prepare('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?').run(amount, account_id);
-        // Add to target (subtracting interest if any)
-        db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount - (interest || 0), to_account_id);
+        // Add to target
+        db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount, to_account_id);
       }
       
       return info.lastInsertRowid;
@@ -114,17 +116,22 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   app.get('/api/analytics', (req, res) => {
     try {
       // Get all accounts and their history based on transactions
-      // For simplicity, we'll return the history of transactions that affected balances
       const history = db.prepare(`
         SELECT 
-          date(date) as day,
-          SUM(CASE WHEN type = 'DEPOSIT' THEN amount WHEN type = 'WITHDRAWAL' THEN -amount WHEN type = 'TRANSFER' AND account_id = a.id THEN -amount WHEN type = 'TRANSFER' AND to_account_id = a.id THEN (amount - interest) ELSE 0 END) as change,
+          date(t.date) as day,
+          a.id as account_id,
+          SUM(CASE 
+            WHEN type = 'DEPOSIT' THEN amount 
+            WHEN type = 'WITHDRAWAL' THEN -amount 
+            WHEN type = 'TRANSFER' AND account_id = a.id THEN -amount 
+            WHEN type = 'TRANSFER' AND to_account_id = a.id THEN amount 
+            ELSE 0 END) as change,
           a.currency,
           a.bank_name,
           a.owner
         FROM transactions t
         JOIN accounts a ON (t.account_id = a.id OR t.to_account_id = a.id)
-        GROUP BY day, a.currency, a.bank_name, a.owner
+        GROUP BY day, a.id
         ORDER BY day ASC
       `).all();
       

@@ -26,7 +26,7 @@ db.exec(`
     bank_name TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
-    currency TEXT NOT NULL CHECK(currency IN ('RON', 'EUR', 'USD')),
+    currency TEXT NOT NULL CHECK(currency IN ('RON', 'EUR')),
     initial_balance REAL DEFAULT 0,
     current_balance REAL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -40,7 +40,6 @@ db.exec(`
     type TEXT NOT NULL CHECK(type IN ('DEPOSIT', 'WITHDRAWAL', 'TRANSFER')),
     amount REAL NOT NULL,
     currency TEXT NOT NULL,
-    interest REAL DEFAULT 0,
     description TEXT,
     date DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
-export type Currency = 'RON' | 'EUR' | 'USD';
+export type Currency = 'RON' | 'EUR';
 
 export interface Account {
   id: number;
@@ -22,7 +22,6 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   currency: Currency;
-  interest: number;
   description: string;
   date: string;
 }
