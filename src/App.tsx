@@ -41,7 +41,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.2.1';
+const APP_VERSION = '1.3.3';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -84,7 +84,8 @@ export default function App() {
     name: '',
     description: '',
     currency: 'RON' as Currency,
-    initial_balance: 0
+    initial_balance: 0,
+    is_active: true
   });
 
   const handleEditAccount = async (e: React.FormEvent) => {
@@ -146,12 +147,12 @@ export default function App() {
       const res = await fetch('/api/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newAccount, initial_balance: 0 })
+        body: JSON.stringify({ ...newAccount, initial_balance: 0, is_active: true })
       });
       if (res.ok) {
         toast.success('Account created successfully');
         setIsAddAccountOpen(false);
-        setNewAccount({ owner: '', bank_name: '', name: '', description: '', currency: 'RON', initial_balance: 0 });
+        setNewAccount({ owner: '', bank_name: '', name: '', description: '', currency: 'RON', initial_balance: 0, is_active: true });
         fetchData();
       }
     } catch (error) {
@@ -322,7 +323,9 @@ export default function App() {
     return matchesOwner && matchesBank;
   });
 
-  const totalBalances = filteredAccountsForStats.reduce((acc, curr) => {
+  const totalBalances = filteredAccountsForStats
+    .filter(a => a.is_active)
+    .reduce((acc, curr) => {
     if (curr.currency as string === 'USD') return acc;
     acc[curr.currency] = (acc[curr.currency] || 0) + curr.current_balance;
     return acc;
@@ -518,8 +521,8 @@ export default function App() {
                   <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Active Accounts</p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">{accounts.length}</span>
-                      <span className="text-xs font-medium text-blue-600">Across {new Set(accounts.map(a => a.bank_name)).size} Banks</span>
+                      <span className="text-2xl font-bold">{accounts.filter(a => a.is_active).length}</span>
+                      <span className="text-xs font-medium text-blue-600">Across {new Set(accounts.filter(a => a.is_active).map(a => a.bank_name)).size} Banks</span>
                     </div>
                   </div>
                 </div>
@@ -762,6 +765,7 @@ export default function App() {
                       </div>
                       <div className="space-y-4">
                         {filteredAccountsForStats
+                          .filter(a => a.is_active)
                           .sort((a,b) => {
                             if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
                             return a.owner.localeCompare(b.owner);
@@ -839,7 +843,7 @@ export default function App() {
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100">
-                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account & Bank</th>
+                          <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Accounts</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Owner</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
                           <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Balance</th>
@@ -848,6 +852,7 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {accounts
+                          .filter(a => a.is_active)
                           .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
                           .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
                           .sort((a, b) => {
@@ -876,9 +881,11 @@ export default function App() {
                               <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">{acc.owner}</span>
                             </td>
                             <td className="px-4 py-2.5 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <div className={`w-1.5 h-1.5 rounded-full ${acc.current_balance > 0 ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">{acc.currency}</span>
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                  <span className="text-[9px] font-bold uppercase tracking-tight text-gray-400">{acc.currency}</span>
+                                </div>
                               </div>
                             </td>
                             <td className="px-4 py-2.5 text-right">
@@ -914,6 +921,79 @@ export default function App() {
                           </tr>
                         ))}
                       </tbody>
+                      
+                      {/* Inactive Accounts Section */}
+                      {accounts.some(a => !a.is_active) && (
+                        <>
+                          <thead className="bg-gray-50/80 border-t border-b border-gray-100">
+                            <tr>
+                              <th colSpan={5} className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                                Inactive Accounts
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50 bg-gray-50/30">
+                            {accounts
+                              .filter(a => !a.is_active)
+                              .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
+                              .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                              .sort((a, b) => b.current_balance - a.current_balance) // Simple sort for inactive
+                              .map((acc) => (
+                              <tr key={acc.id} className="hover:bg-gray-100/50 transition-colors group opacity-70">
+                                <td className="px-4 py-2.5">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 italic">
+                                      <Building2 size={16} />
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-bold text-gray-500 leading-none mb-1 line-through">{acc.name}</div>
+                                      <div className="text-[10px] text-gray-300 font-medium uppercase tracking-tight">{acc.bank_name}</div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <span className="text-[10px] font-medium text-gray-400 bg-gray-100/50 px-2 py-0.5 rounded-full">{acc.owner}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-center">
+                                  <div className="flex flex-col items-center justify-center">
+                                    <span className="text-[8px] font-bold text-gray-300 uppercase tracking-tighter bg-gray-100 px-1 rounded">Archived</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-right">
+                                  <span className="text-sm font-medium text-gray-400">{formatCurrency(acc.current_balance, acc.currency)}</span>
+                                </td>
+                                <td className="px-4 py-2.5 text-right">
+                                  <div className="flex justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 hover:text-blue-600 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setEditingAccount(acc);
+                                        setIsEditAccountOpen(true);
+                                      }}
+                                    >
+                                      <Pencil size={12} />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 hover:text-red-500 hover:bg-red-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAccountToDelete(acc);
+                                        setIsDeleteConfirmOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </>
+                      )}
                     </table>
                   </div>
                 </div>
@@ -1192,6 +1272,21 @@ export default function App() {
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Input required className="rounded-lg bg-white border-gray-200" value={editingAccount.description} onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} />
+              </div>
+              <div 
+                className="flex items-center gap-2 pt-2 cursor-pointer" 
+                onClick={() => {
+                  if (editingAccount.is_active && Number(editingAccount.current_balance) !== 0) {
+                    toast.error('Only accounts with 0 balance can be marked as inactive');
+                    return;
+                  }
+                  setEditingAccount({...editingAccount, is_active: editingAccount.is_active ? false : true});
+                }}
+              >
+                <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-1 ${editingAccount.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                  <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform ${editingAccount.is_active ? 'translate-x-[20px]' : 'translate-x-0'}`}></div>
+                </div>
+                <Label className="cursor-pointer text-xs font-semibold text-gray-600">Active Account</Label>
               </div>
               <DialogFooter>
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Save Changes</Button>

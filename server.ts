@@ -27,12 +27,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   });
 
   app.post('/api/accounts', (req, res) => {
-    const { owner, bank_name, name, description, currency, initial_balance } = req.body;
+    const { owner, bank_name, name, description, currency, initial_balance, is_active } = req.body;
     try {
       const info = db.prepare(`
-        INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(owner, bank_name, name, description, currency, initial_balance, initial_balance);
+        INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, is_active)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(owner, bank_name, name, description, currency, initial_balance, initial_balance, is_active === false ? 0 : 1);
       
       const newAccount = db.prepare('SELECT * FROM accounts WHERE id = ?').get(info.lastInsertRowid);
       res.status(201).json(newAccount);
@@ -43,12 +43,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.put('/api/accounts/:id', (req, res) => {
     const { id } = req.params;
-    const { owner, bank_name, name, description } = req.body;
+    const { owner, bank_name, name, description, is_active } = req.body;
     try {
       db.prepare(`
-        UPDATE accounts SET owner = ?, bank_name = ?, name = ?, description = ?
+        UPDATE accounts SET owner = ?, bank_name = ?, name = ?, description = ?, is_active = ?
         WHERE id = ?
-      `).run(owner, bank_name, name, description, id);
+      `).run(owner, bank_name, name, description, is_active === false ? 0 : 1, id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: 'Failed to update account' });

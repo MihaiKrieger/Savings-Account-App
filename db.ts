@@ -29,9 +29,18 @@ db.exec(`
     currency TEXT NOT NULL CHECK(currency IN ('RON', 'EUR')),
     initial_balance REAL DEFAULT 0,
     current_balance REAL DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+`);
 
+// Migration for existing tables
+const tableInfo = db.prepare("PRAGMA table_info(accounts)").all() as any[];
+if (!tableInfo.some(col => (col as any).name === 'is_active')) {
+  db.exec("ALTER TABLE accounts ADD COLUMN is_active INTEGER DEFAULT 1");
+}
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     account_id INTEGER,
