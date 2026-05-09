@@ -1321,8 +1321,8 @@ export default function App() {
                 <Input required value={editingAccount.name} onChange={e => setEditingAccount({...editingAccount, name: e.target.value})} />
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
-                <Input required className="rounded-lg bg-white border-gray-200" value={editingAccount.description} onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} />
+                <Label>Description (Optional)</Label>
+                <Input className="rounded-lg bg-white border-gray-200" value={editingAccount.description} onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} />
               </div>
               <div className="space-y-2">
                 <Label>Due Date (Optional)</Label>
