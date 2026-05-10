@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: econosmishu
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/savings.db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NODE_ENV=production
+    volumes:
+      - econosmishu_data:/app/data
+
+volumes:
+  econosmishu_data:
