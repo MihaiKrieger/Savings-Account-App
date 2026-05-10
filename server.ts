@@ -89,14 +89,14 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
       // 2. Update Balances
       if (type === 'DEPOSIT') {
-        db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount, account_id);
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance + ?, 2) WHERE id = ?').run(amount, account_id);
       } else if (type === 'WITHDRAWAL') {
-        db.prepare('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?').run(amount, account_id);
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance - ?, 2) WHERE id = ?').run(amount, account_id);
       } else if (type === 'TRANSFER') {
         // Subtract from source
-        db.prepare('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?').run(amount, account_id);
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance - ?, 2) WHERE id = ?').run(amount, account_id);
         // Add to target
-        db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount, to_account_id);
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance + ?, 2) WHERE id = ?').run(amount, to_account_id);
       }
       
       return info.lastInsertRowid;

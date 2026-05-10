@@ -44,7 +44,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.4.7';
+const APP_VERSION = '1.5.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -56,6 +56,8 @@ export default function App() {
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
+  const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
   const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name' | 'due_date'>('balance');
 
@@ -232,7 +234,9 @@ export default function App() {
   };
 
   const formatCurrency = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('ro-RO', { style: 'currency', currency }).format(amount);
+    // Normalize small values and handle negative zero to avoid "-0.00" display
+    const normalized = Math.abs(amount) < 0.001 ? 0 : amount;
+    return new Intl.NumberFormat('ro-RO', { style: 'currency', currency }).format(normalized);
   };
 
   // Prepare Chart Data
@@ -842,7 +846,88 @@ export default function App() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Sort By:</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Status:</span>
+                      <Select value={accountStatusFilter} onValueChange={(v: any) => setAccountStatusFilter(v)}>
+                        <SelectTrigger className="w-[90px] h-9 bg-white border-gray-200 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Currency:</span>
+                       <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                         <SelectTrigger className="w-[85px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">All</SelectItem>
+                           <SelectItem value="RON">RON</SelectItem>
+                           <SelectItem value="EUR">EUR</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Owner:</span>
+                       <div className="relative">
+                        <button 
+                          onClick={() => setIsOwnerFilterOpen(!isOwnerFilterOpen)}
+                          className="flex items-center justify-between min-w-[110px] max-w-[150px] h-9 bg-white border border-gray-200 shadow-sm px-3 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors shrink-0"
+                        >
+                          <span className="truncate">
+                            {selectedOwners.length === 0 ? 'All Owners' : 
+                             selectedOwners.length === 1 ? selectedOwners[0] : 
+                             `${selectedOwners.length} Selected`}
+                          </span>
+                          <ChevronDown size={14} className={`text-gray-400 transition-transform ml-2 ${isOwnerFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {isOwnerFilterOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setIsOwnerFilterOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 mt-1 w-[160px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 overflow-hidden animate-in fade-in zoom-in duration-100">
+                              <button 
+                                className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                onClick={() => {
+                                  setSelectedOwners([]);
+                                  setIsOwnerFilterOpen(false);
+                                }}
+                              >
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                  {selectedOwners.length === 0 && <Check size={12} className="text-blue-600" />}
+                                </div>
+                                <span className={selectedOwners.length === 0 ? 'font-bold text-blue-600' : ''}>All Owners</span>
+                              </button>
+                              
+                              <div className="h-px bg-gray-100 my-1" />
+                              
+                              {owners.map(owner => (
+                                <button 
+                                  key={owner}
+                                  className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                  onClick={() => toggleOwner(owner)}
+                                >
+                                  <div className="w-4 h-4 flex items-center justify-center border border-gray-200 rounded-sm bg-gray-50">
+                                    {selectedOwners.includes(owner) && <Check size={12} className="text-blue-600" />}
+                                  </div>
+                                  <span className={selectedOwners.includes(owner) ? 'font-bold text-blue-600' : ''}>{owner}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block" />
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Sort:</span>
                        <Select value={accountsSortField} onValueChange={(v: any) => setAccountsSortField(v)}>
                          <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
                            <SelectValue />
@@ -887,9 +972,10 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {accounts
-                          .filter(a => a.is_active)
+                          .filter(a => a.is_active && (accountStatusFilter === 'all' || accountStatusFilter === 'active'))
                           .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
                           .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                          .filter(a => selectedCurrency === 'all' || a.currency === selectedCurrency)
                           .filter(a => searchQuery === '' || a.name.toLowerCase().includes(searchQuery.toLowerCase()))
                           .sort((a, b) => {
                             let comparison = 0;
@@ -968,7 +1054,7 @@ export default function App() {
                       </tbody>
                       
                       {/* Inactive Accounts Section */}
-                      {accounts.some(a => !a.is_active) && (
+                      {accounts.some(a => !a.is_active) && (accountStatusFilter === 'all' || accountStatusFilter === 'inactive') && (
                         <>
                           <thead className="bg-gray-50/80 border-t border-b border-gray-100">
                             <tr>
@@ -979,9 +1065,10 @@ export default function App() {
                           </thead>
                           <tbody className="divide-y divide-gray-50 bg-gray-50/30">
                             {accounts
-                              .filter(a => !a.is_active)
+                              .filter(a => !a.is_active && (accountStatusFilter === 'all' || accountStatusFilter === 'inactive'))
                               .filter(a => selectedOwners.length === 0 || selectedOwners.includes(a.owner))
                               .filter(a => selectedBank === 'all' || a.bank_name === selectedBank)
+                              .filter(a => selectedCurrency === 'all' || a.currency === selectedCurrency)
                               .filter(a => searchQuery === '' || a.name.toLowerCase().includes(searchQuery.toLowerCase()))
                               .sort((a, b) => b.current_balance - a.current_balance) // Simple sort for inactive
                               .map((acc) => (
@@ -1234,6 +1321,17 @@ export default function App() {
                   ))}
                 </SelectContent>
               </Select>
+              {newTx.account_id && (
+                <div className="text-[11px] font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded border border-gray-100 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200">
+                  <span>Current Balance:</span>
+                  <span className="font-bold text-gray-900">
+                    {formatCurrency(
+                      accounts.find(a => String(a.id) === String(newTx.account_id))?.current_balance || 0,
+                      accounts.find(a => String(a.id) === String(newTx.account_id))?.currency || 'RON'
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
             
             {newTx.type === 'TRANSFER' && (
@@ -1247,6 +1345,17 @@ export default function App() {
                     ))}
                   </SelectContent>
                 </Select>
+                {newTx.to_account_id && (
+                  <div className="text-[11px] font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded border border-gray-100 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200">
+                    <span>Current Balance:</span>
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(
+                        accounts.find(a => String(a.id) === String(newTx.to_account_id))?.current_balance || 0,
+                        accounts.find(a => String(a.id) === String(newTx.to_account_id))?.currency || 'RON'
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1333,7 +1442,7 @@ export default function App() {
               <div 
                 className="flex items-center gap-2 pt-2 cursor-pointer" 
                 onClick={() => {
-                  if (editingAccount.is_active && Number(editingAccount.current_balance) !== 0) {
+                  if (editingAccount.is_active && Math.abs(Number(editingAccount.current_balance)) > 0.001) {
                     toast.error('Only accounts with 0 balance can be marked as inactive');
                     return;
                   }
