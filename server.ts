@@ -120,12 +120,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
         SELECT 
           date(t.date) as day,
           a.id as account_id,
-          SUM(CASE 
+          ROUND(SUM(CASE 
             WHEN type = 'DEPOSIT' THEN amount 
             WHEN type = 'WITHDRAWAL' THEN -amount 
             WHEN type = 'TRANSFER' AND account_id = a.id THEN -amount 
             WHEN type = 'TRANSFER' AND to_account_id = a.id THEN amount 
-            ELSE 0 END) as change,
+            ELSE 0 END), 2) as change,
           a.currency,
           a.bank_name,
           a.owner

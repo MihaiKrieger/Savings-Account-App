@@ -44,7 +44,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -176,7 +176,7 @@ export default function App() {
           ...newTx,
           account_id: parseInt(newTx.account_id),
           to_account_id: newTx.to_account_id ? parseInt(newTx.to_account_id) : null,
-          amount: parseFloat(newTx.amount.toString()),
+          amount: Math.round(parseFloat(newTx.amount.toString()) * 100) / 100,
           date: newTx.date
         })
       });
@@ -330,7 +330,8 @@ export default function App() {
       });
       result.push({
         day,
-        ...currentBalances
+        RON: Math.round(currentBalances.RON * 100) / 100,
+        EUR: Math.round(currentBalances.EUR * 100) / 100
       });
     });
 
@@ -351,7 +352,8 @@ export default function App() {
     .filter(a => a.is_active)
     .reduce((acc, curr) => {
     if (curr.currency as string === 'USD') return acc;
-    acc[curr.currency] = (acc[curr.currency] || 0) + curr.current_balance;
+    const currentVal = acc[curr.currency] || 0;
+    acc[curr.currency] = Math.round((currentVal + curr.current_balance) * 100) / 100;
     return acc;
   }, {} as Record<string, number>);
 
@@ -1359,10 +1361,24 @@ export default function App() {
               </div>
             )}
 
-            <div className="space-y-2">
               <Label>Amount</Label>
-              <Input type="number" step="0.01" required className="bg-white border-gray-200" value={isNaN(newTx.amount) ? '' : newTx.amount} onChange={e => setNewTx({...newTx, amount: e.target.value === '' ? 0 : parseFloat(e.target.value)})} />
-            </div>
+              <Input 
+                type="number" 
+                step="0.01" 
+                required 
+                className="bg-white border-gray-200" 
+                value={isNaN(newTx.amount) ? '' : newTx.amount} 
+                onChange={e => {
+                  const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                  setNewTx({...newTx, amount: val});
+                }} 
+                onBlur={e => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val)) {
+                    setNewTx({...newTx, amount: Math.round(val * 100) / 100});
+                  }
+                }}
+              />
             
             <div className="space-y-2">
               <Label>Description</Label>

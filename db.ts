@@ -91,9 +91,9 @@ if (count.count === 0) {
 
   const updateBalance = (id: number, amount: number, type: 'DEPOSIT' | 'WITHDRAWAL') => {
     if (type === 'DEPOSIT') {
-      db.prepare('UPDATE accounts SET current_balance = current_balance + ? WHERE id = ?').run(amount, id);
+      db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance + ?, 2) WHERE id = ?').run(amount, id);
     } else {
-      db.prepare('UPDATE accounts SET current_balance = current_balance - ? WHERE id = ?').run(amount, id);
+      db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance - ?, 2) WHERE id = ?').run(amount, id);
     }
   };
 
@@ -103,7 +103,7 @@ if (count.count === 0) {
   for (let i = 25; i >= 0; i -= 5) {
     const txDate = new Date(now);
     txDate.setDate(now.getDate() - i);
-    const amount = 500 + Math.random() * 200;
+    const amount = Math.round((500 + Math.random() * 200) * 100) / 100;
     insertTx.run(accountIds[0], 'DEPOSIT', amount, 'RON', 'Monthly Contribution', txDate.toISOString());
     updateBalance(accountIds[0], amount, 'DEPOSIT');
   }
@@ -113,7 +113,7 @@ if (count.count === 0) {
     const txDate = new Date(now);
     txDate.setDate(now.getDate() - i);
     const isWithdrawal = Math.random() > 0.4;
-    const amount = 50 + Math.random() * 150;
+    const amount = Math.round((50 + Math.random() * 150) * 100) / 100;
     const type = isWithdrawal ? 'WITHDRAWAL' : 'DEPOSIT';
     insertTx.run(accountIds[1], type, amount, 'RON', isWithdrawal ? 'Supermarket' : 'Pocket money', txDate.toISOString());
     updateBalance(accountIds[1], amount, type);
