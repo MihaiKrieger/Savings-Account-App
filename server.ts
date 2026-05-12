@@ -79,7 +79,28 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     const { account_id, type, amount, description, to_account_id, date } = req.body;
     
     const transaction = db.transaction(() => {
-      // 1. Log Transaction
+      // 1. Validate Account Existence and Currency
+      const fromAcc = db.prepare('SELECT currency FROM accounts WHERE id = ?').get(account_id) as { currency: string } | undefined;
+      if (!fromAcc) {
+        throw new Error(`Source account (ID: ${account_id}) not found`);
+      }
+
+      if (type === 'TRANSFER') {
+        if (!to_account_id) {
+          throw new Error('Target account is required for transfers');
+        }
+        const toAcc = db.prepare('SELECT currency FROM accounts WHERE id = ?').get(to_account_id) as { currency: string } | undefined;
+        
+        if (!toAcc) {
+          throw new Error(`Target account (ID: ${to_account_id}) not found`);
+        }
+        
+        if (fromAcc.currency !== toAcc.currency) {
+          throw new Error(`Transfer between different currencies (${fromAcc.currency} to ${toAcc.currency}) is not allowed`);
+        }
+      }
+
+      // 2. Log Transaction
       // If date is provided as YYYY-MM-DD, append the current time to ensure proper sorting
       const txDate = date 
         ? (date.length === 10 ? `${date}T${new Date().toISOString().split('T')[1]}` : date) 
@@ -109,9 +130,9 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
       const txId = transaction();
       const newTx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(txId);
       res.status(201).json(newTx);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      res.status(500).json({ error: 'Failed to process transaction' });
+      res.status(400).json({ error: error.message || 'Failed to process transaction' });
     }
   });
 

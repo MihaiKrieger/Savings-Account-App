@@ -16,7 +16,8 @@ import {
   ChevronDown,
   CalendarDays,
   Filter,
-  Banknote
+  Banknote,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -44,7 +45,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.5.3';
+const APP_VERSION = '1.5.5';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -169,13 +170,35 @@ export default function App() {
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const sourceId = parseInt(newTx.account_id);
+      const targetId = newTx.to_account_id ? parseInt(newTx.to_account_id) : null;
+
+      if (isNaN(sourceId)) {
+        toast.error('Please select a source account');
+        return;
+      }
+
+      if (newTx.type === 'TRANSFER' && (targetId === null || isNaN(targetId))) {
+        toast.error('Please select a target account for the transfer');
+        return;
+      }
+
+      if (newTx.type === 'TRANSFER') {
+        const fromAcc = accounts.find(a => a.id === sourceId);
+        const toAcc = accounts.find(a => a.id === targetId);
+        if (fromAcc && toAcc && fromAcc.currency !== toAcc.currency) {
+          toast.error(`Cannot transfer between ${fromAcc.currency} and ${toAcc.currency} accounts`);
+          return;
+        }
+      }
+
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newTx,
-          account_id: parseInt(newTx.account_id),
-          to_account_id: newTx.to_account_id ? parseInt(newTx.to_account_id) : null,
+          account_id: sourceId,
+          to_account_id: targetId,
           amount: Math.round(parseFloat(newTx.amount.toString()) * 100) / 100,
           date: newTx.date
         })
@@ -1164,9 +1187,6 @@ export default function App() {
                         <SelectItem value="oldest" label="Oldest first">Oldest first</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={() => setIsTransactionOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg">
-                      <ArrowRightLeft className="mr-2 h-4 w-4" /> Log Transaction
-                    </Button>
                   </div>
                 </div>
 
@@ -1210,12 +1230,43 @@ export default function App() {
                               </span>
                             </TableCell>
                             <TableCell className="px-6 font-medium text-sm">
-                              {account?.name}
-                              {targetAccount && (
-                                <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                                  <ArrowRightLeft size={10} /> {targetAccount.name}
-                                </div>
-                              )}
+                              <div className="flex flex-col gap-1">
+                                {tx.type === 'DEPOSIT' && (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-green-50 flex items-center justify-center text-green-600 shrink-0">
+                                      <ArrowRight size={10} className="rotate-[135deg]" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">To Account</span>
+                                      <span className="text-gray-900">{account?.name}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {tx.type === 'WITHDRAWAL' && (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center text-red-600 shrink-0">
+                                      <ArrowRight size={10} className="rotate-[-45deg]" />
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">From Account</span>
+                                      <span className="text-gray-900">{account?.name}</span>
+                                    </div>
+                                  </div>
+                                )}
+                                {tx.type === 'TRANSFER' && (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex flex-col min-w-[80px]">
+                                      <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">From</span>
+                                      <span className="text-gray-900 truncate max-w-[100px]">{account?.name}</span>
+                                    </div>
+                                    <ArrowRight size={12} className="text-blue-400 shrink-0 mx-1 mt-3" />
+                                    <div className="flex flex-col min-w-[80px]">
+                                      <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">To</span>
+                                      <span className="text-gray-900 truncate max-w-[100px]">{targetAccount?.name}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="px-6 text-gray-600 text-sm font-normal truncate max-w-[200px]">{tx.description || 'Manual entry'}</TableCell>
                             <TableCell className="px-6 text-gray-400 text-[10px]">
@@ -1344,10 +1395,16 @@ export default function App() {
                 <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
-                    {accounts.filter(a => String(a.id) !== String(newTx.account_id)).map(acc => (
-                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
-                      {acc.owner}: {acc.name} • {acc.bank_name}
-                    </SelectItem>
+                    {accounts
+                      .filter(a => String(a.id) !== String(newTx.account_id))
+                      .filter(a => {
+                        const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
+                        return !sourceAcc || a.currency === sourceAcc.currency;
+                      })
+                      .map(acc => (
+                      <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
+                        {acc.owner}: {acc.name} • {acc.bank_name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
