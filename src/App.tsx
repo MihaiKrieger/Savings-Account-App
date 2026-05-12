@@ -45,7 +45,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.5.5';
+const APP_VERSION = '1.5.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1369,7 +1369,7 @@ export default function App() {
               <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
-                  {accounts.map(acc => (
+                  {accounts.filter(acc => acc.is_active).map(acc => (
                     <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
                       {acc.owner}: {acc.name} • {acc.bank_name}
                     </SelectItem>
@@ -1396,7 +1396,7 @@ export default function App() {
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
                     {accounts
-                      .filter(a => String(a.id) !== String(newTx.account_id))
+                      .filter(a => a.is_active && String(a.id) !== String(newTx.account_id))
                       .filter(a => {
                         const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
                         return !sourceAcc || a.currency === sourceAcc.currency;

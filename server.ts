@@ -79,20 +79,26 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     const { account_id, type, amount, description, to_account_id, date } = req.body;
     
     const transaction = db.transaction(() => {
-      // 1. Validate Account Existence and Currency
-      const fromAcc = db.prepare('SELECT currency FROM accounts WHERE id = ?').get(account_id) as { currency: string } | undefined;
+      // 1. Validate Account Existence, Activity and Currency
+      const fromAcc = db.prepare('SELECT currency, is_active FROM accounts WHERE id = ?').get(account_id) as { currency: string, is_active: number } | undefined;
       if (!fromAcc) {
         throw new Error(`Source account (ID: ${account_id}) not found`);
+      }
+      if (!fromAcc.is_active) {
+        throw new Error(`Source account is inactive`);
       }
 
       if (type === 'TRANSFER') {
         if (!to_account_id) {
           throw new Error('Target account is required for transfers');
         }
-        const toAcc = db.prepare('SELECT currency FROM accounts WHERE id = ?').get(to_account_id) as { currency: string } | undefined;
+        const toAcc = db.prepare('SELECT currency, is_active FROM accounts WHERE id = ?').get(to_account_id) as { currency: string, is_active: number } | undefined;
         
         if (!toAcc) {
           throw new Error(`Target account (ID: ${to_account_id}) not found`);
+        }
+        if (!toAcc.is_active) {
+          throw new Error(`Target account is inactive`);
         }
         
         if (fromAcc.currency !== toAcc.currency) {
