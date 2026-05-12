@@ -68,7 +68,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   // Transactions
   app.get('/api/transactions', (req, res) => {
     try {
-      const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC').all();
+      const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC, id DESC').all();
       res.json(transactions);
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch transactions' });
@@ -80,8 +80,11 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     
     const transaction = db.transaction(() => {
       // 1. Log Transaction
-      // If date is provided, use it, otherwise use CURRENT_TIMESTAMP (which is handled by the default value in schema if we omit it, but we can pass it here)
-      const txDate = date || new Date().toISOString();
+      // If date is provided as YYYY-MM-DD, append the current time to ensure proper sorting
+      const txDate = date 
+        ? (date.length === 10 ? `${date}T${new Date().toISOString().split('T')[1]}` : date) 
+        : new Date().toISOString();
+      
       const info = db.prepare(`
         INSERT INTO transactions (account_id, from_account_id, to_account_id, type, amount, currency, description, date)
         SELECT ?, ?, ?, ?, ?, currency, ?, ? FROM accounts WHERE id = ?

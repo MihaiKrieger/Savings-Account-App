@@ -44,7 +44,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.5.3';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1219,7 +1219,7 @@ export default function App() {
                             </TableCell>
                             <TableCell className="px-6 text-gray-600 text-sm font-normal truncate max-w-[200px]">{tx.description || 'Manual entry'}</TableCell>
                             <TableCell className="px-6 text-gray-400 text-[10px]">
-                              {formatDate(tx.date)} at {new Date(tx.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatDate(tx.date)}
                             </TableCell>
                             <TableCell className={`px-6 text-right font-bold text-sm ${
                               tx.type === 'DEPOSIT' ? 'text-green-600' : 
@@ -1319,7 +1319,9 @@ export default function App() {
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
                   {accounts.map(acc => (
-                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner} - ${acc.name}`}>[{acc.owner}] {acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
+                      {acc.owner}: {acc.name} • {acc.bank_name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1343,7 +1345,9 @@ export default function App() {
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
                     {accounts.filter(a => String(a.id) !== String(newTx.account_id)).map(acc => (
-                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner} - ${acc.name}`}>[{acc.owner}] {acc.name} ({acc.bank_name})</SelectItem>
+                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
+                      {acc.owner}: {acc.name} • {acc.bank_name}
+                    </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
