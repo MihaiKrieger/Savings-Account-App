@@ -45,7 +45,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.5.6';
+const APP_VERSION = '1.5.8';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -445,12 +445,23 @@ export default function App() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg"
-              onClick={() => setIsTransactionOpen(true)}
+              variant="outline"
+              size="icon"
+              className="h-9 w-9 border-gray-200 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg shadow-sm"
+              onClick={() => setIsAddAccountOpen(true)}
+              title="Add Account"
             >
-              <Plus size={18} className="mr-2" /> New Transaction
+              <CreditCard size={18} />
+            </Button>
+            <Button 
+              size="icon"
+              className="h-9 w-9 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg"
+              onClick={() => setIsTransactionOpen(true)}
+              title="New Transaction"
+            >
+              <Plus size={18} />
             </Button>
           </div>
         </header>
@@ -466,12 +477,13 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="flex items-end justify-between">
+                <div className="flex items-start justify-between">
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Financial Overview</h1>
                     <p className="text-gray-500 text-sm mt-1">Real-time status of your global savings accounts.</p>
                   </div>
-                        <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-4 justify-end">
                            <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Year:</span>
                               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -555,6 +567,7 @@ export default function App() {
                               </Select>
                            </div>
                         </div>
+                  </div>
                 </div>
 
                 {/* Stats Row */}
