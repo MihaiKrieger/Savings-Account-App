@@ -47,7 +47,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -60,6 +60,7 @@ export default function App() {
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
+  const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'RON' | 'EUR'>('all');
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
   const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name' | 'due_date'>('balance');
@@ -650,21 +651,43 @@ export default function App() {
                             <CardTitle className="text-base font-bold text-gray-800">Portfolio Evolution</CardTitle>
                             <CardDescription className="text-xs">Growth across {selectedYear === 'all' ? 'all time' : selectedYear}</CardDescription>
                           </div>
-                          <div className="flex bg-gray-100 p-1 rounded-lg">
-                            <button 
-                              onClick={() => setChartView('bar')}
-                              className={`p-1.5 rounded-md transition-all ${chartView === 'bar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                              title="Bar Chart"
-                            >
-                              <BarChart3 size={16} />
-                            </button>
-                            <button 
-                              onClick={() => setChartView('line')}
-                              className={`p-1.5 rounded-md transition-all ${chartView === 'line' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                              title="Line Chart"
-                            >
-                              <LineChartIcon size={16} />
-                            </button>
+                          <div className="flex bg-gray-100 p-1 rounded-lg gap-1">
+                            <div className="flex bg-white/50 p-0.5 rounded-md mr-2">
+                              <button 
+                                onClick={() => setChartCurrencyFilter('all')}
+                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                              >
+                                ALL
+                              </button>
+                              <button 
+                                onClick={() => setChartCurrencyFilter('RON')}
+                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'RON' ? 'bg-[#F97316] text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                              >
+                                RON
+                              </button>
+                              <button 
+                                onClick={() => setChartCurrencyFilter('EUR')}
+                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'EUR' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                              >
+                                EUR
+                              </button>
+                            </div>
+                            <div className="flex items-center">
+                              <button 
+                                onClick={() => setChartView('bar')}
+                                className={`p-1.5 rounded-md transition-all ${chartView === 'bar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                title="Bar Chart"
+                              >
+                                <BarChart3 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => setChartView('line')}
+                                className={`p-1.5 rounded-md transition-all ${chartView === 'line' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                title="Line Chart"
+                              >
+                                <LineChartIcon size={16} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </CardHeader>
@@ -720,18 +743,22 @@ export default function App() {
                                 iconSize={8}
                                 wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
                               />
-                              <Bar 
-                                dataKey="RON" 
-                                fill="#F97316" 
-                                radius={[4, 4, 0, 0]}
-                                maxBarSize={40}
-                              />
-                              <Bar 
-                                dataKey="EUR" 
-                                fill="#2563EB" 
-                                radius={[4, 4, 0, 0]}
-                                maxBarSize={40}
-                              />
+                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
+                                <Bar 
+                                  dataKey="RON" 
+                                  fill="#F97316" 
+                                  radius={[4, 4, 0, 0]}
+                                  maxBarSize={40}
+                                />
+                              )}
+                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
+                                <Bar 
+                                  dataKey="EUR" 
+                                  fill="#2563EB" 
+                                  radius={[4, 4, 0, 0]}
+                                  maxBarSize={40}
+                                />
+                              )}
                             </BarChart>
                           ) : (
                             <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -783,22 +810,26 @@ export default function App() {
                                 iconSize={8}
                                 wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
                               />
-                              <Line 
-                                type="monotone" 
-                                dataKey="RON" 
-                                stroke="#F97316" 
-                                strokeWidth={2.5} 
-                                dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
-                                activeDot={{ r: 6 }} 
-                              />
-                              <Line 
-                                type="monotone" 
-                                dataKey="EUR" 
-                                stroke="#2563EB" 
-                                strokeWidth={2.5} 
-                                dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
-                                activeDot={{ r: 6 }} 
-                              />
+                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="RON" 
+                                  stroke="#F97316" 
+                                  strokeWidth={2.5} 
+                                  dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
+                                  activeDot={{ r: 6 }} 
+                                />
+                              )}
+                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
+                                <Line 
+                                  type="monotone" 
+                                  dataKey="EUR" 
+                                  stroke="#2563EB" 
+                                  strokeWidth={2.5} 
+                                  dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
+                                  activeDot={{ r: 6 }} 
+                                />
+                              )}
                             </LineChart>
                           )}
                         </ResponsiveContainer>
