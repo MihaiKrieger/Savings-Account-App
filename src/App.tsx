@@ -47,7 +47,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -258,8 +258,11 @@ export default function App() {
     const isPast = diffTime < 0;
     const animation = isPast ? "animate-elegant-pulse" : "";
     
-    if (diffMonths < 2) return `bg-red-50 text-red-600 border-red-100/50 ${animation}`;
-    if (diffMonths < 3) return `bg-amber-50 text-amber-600 border-amber-100/50 ${animation}`;
+    // 1 month or less (including overdue)
+    if (diffMonths <= 1) return `bg-red-50 text-red-600 border-red-100/50 ${animation}`;
+    // 2 months or less
+    if (diffMonths <= 2) return `bg-amber-50 text-amber-600 border-amber-100/50 ${animation}`;
+    // Later than 2 full months
     return `bg-blue-50 text-blue-600 border-blue-100/50 ${animation}`;
   };
 
