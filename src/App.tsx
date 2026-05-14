@@ -8,7 +8,7 @@ import {
   Plus, 
   ArrowRightLeft, 
   TrendingUp,
-  Wallet,
+  PiggyBank,
   Building2,
   Trash2,
   Pencil,
@@ -47,7 +47,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.6.4';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -275,7 +275,7 @@ export default function App() {
   };
 
   // Prepare Chart Data
-  const getChartData = () => {
+  const chartData = React.useMemo(() => {
     const currencies = ['RON', 'EUR'] as const;
     const filteredAccounts = accounts.filter(a => {
       const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(a.owner);
@@ -371,29 +371,38 @@ export default function App() {
     });
 
     return result;
-  };
-
-  const chartData = getChartData();
+  }, [accounts, analytics, selectedOwners, selectedBank, selectedYear]);
   
-  const years = Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse();
+  const years = React.useMemo(() => 
+    Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse()
+  , [analytics]);
 
-  const filteredAccountsForStats = accounts.filter(a => {
-    const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(a.owner);
-    const matchesBank = selectedBank === 'all' || a.bank_name === selectedBank;
-    return matchesOwner && matchesBank;
-  });
+  const filteredAccountsForStats = React.useMemo(() => 
+    accounts.filter(a => {
+      const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(a.owner);
+      const matchesBank = selectedBank === 'all' || a.bank_name === selectedBank;
+      return matchesOwner && matchesBank;
+    })
+  , [accounts, selectedOwners, selectedBank]);
 
-  const totalBalances = filteredAccountsForStats
-    .filter(a => a.is_active)
-    .reduce((acc, curr) => {
-    if (curr.currency as string === 'USD') return acc;
-    const currentVal = acc[curr.currency] || 0;
-    acc[curr.currency] = Math.round((currentVal + curr.current_balance) * 100) / 100;
-    return acc;
-  }, {} as Record<string, number>);
+  const totalBalances = React.useMemo(() => 
+    filteredAccountsForStats
+      .filter(a => a.is_active)
+      .reduce((acc, curr) => {
+        if (curr.currency as string === 'USD') return acc;
+        const currentVal = acc[curr.currency] || 0;
+        acc[curr.currency] = Math.round((currentVal + curr.current_balance) * 100) / 100;
+        return acc;
+      }, {} as Record<string, number>)
+  , [filteredAccountsForStats]);
 
-  const owners = Array.from(new Set(accounts.map(a => a.owner))).sort() as string[];
-  const banks = Array.from(new Set(accounts.map(a => a.bank_name))).sort() as string[];
+  const owners = React.useMemo(() => 
+    Array.from(new Set(accounts.map(a => a.owner))).sort() as string[]
+  , [accounts]);
+
+  const banks = React.useMemo(() => 
+    Array.from(new Set(accounts.map(a => a.bank_name))).sort() as string[]
+  , [accounts]);
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden relative">
@@ -416,7 +425,7 @@ export default function App() {
             >
               <div className="flex flex-col items-center space-y-4">
                 <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-100">
-                  <Wallet className="w-10 h-10 text-white" />
+                  <PiggyBank className="w-10 h-10 text-white" />
                 </div>
                 <div className="space-y-2">
                   <h1 className="text-4xl font-black italic tracking-tighter text-gray-900">Econosmishu</h1>
@@ -462,18 +471,28 @@ export default function App() {
 
       {/* Sidebar Navigation */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0 transition-all duration-300 ease-in-out border-r border-[#E5E7EB] bg-white flex flex-col flex-shrink-0
+        fixed inset-y-0 left-0 z-50 lg:relative lg:translate-x-0 transition-[width,transform] duration-300 ease-in-out border-r border-[#E5E7EB] bg-white flex flex-col flex-shrink-0 will-change-[width]
         ${isSidebarCollapsed ? 'lg:w-[80px]' : 'lg:w-[240px]'}
         ${isMobileMenuOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className={`p-6 mb-4 flex items-center ${isSidebarCollapsed ? 'justify-center px-4' : 'justify-between'}`}>
           <div className="flex items-center gap-2 overflow-hidden">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-              <Wallet className="w-5 h-5 text-white" />
+              <PiggyBank className="w-5 h-5 text-white" />
             </div>
-            {!isSidebarCollapsed && (
-              <span className="font-bold tracking-tight text-lg italic whitespace-nowrap">Econosmishu</span>
-            )}
+            <AnimatePresence>
+              {!isSidebarCollapsed && (
+                <motion.span 
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="font-bold tracking-tight text-lg italic whitespace-nowrap overflow-hidden"
+                >
+                  Econosmishu
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
@@ -741,7 +760,7 @@ export default function App() {
                         </div>
                       </CardHeader>
                       <CardContent className="h-[300px] sm:h-[380px] pt-8">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" debounce={250}>
                           {chartView === 'bar' ? (
                             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -1120,9 +1139,7 @@ export default function App() {
                          </SelectContent>
                        </Select>
                     </div>
-                    <Button onClick={() => setIsAddAccountOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg h-9">
-                      <Plus className="mr-2 h-4 w-4" /> Add Account
-                    </Button>
+
                   </div>
                 </div>
 
@@ -1840,7 +1857,19 @@ function NavItem({ active, onClick, icon, label, collapsed }: { active: boolean,
       title={collapsed ? label : undefined}
     >
       <span className={`${active ? 'text-blue-700' : 'text-gray-400'} shrink-0`}>{icon}</span>
-      {!collapsed && <span className="truncate">{label}</span>}
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.span 
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: 'auto' }}
+            exit={{ opacity: 0, width: 0 }}
+            transition={{ duration: 0.2 }}
+            className="truncate overflow-hidden"
+          >
+            {label}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </button>
   );
 }
