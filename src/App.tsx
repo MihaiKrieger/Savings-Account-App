@@ -19,7 +19,8 @@ import {
   Banknote,
   ArrowRight,
   Menu,
-  X
+  X,
+  Radar
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -47,7 +48,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const APP_VERSION = '1.6.4';
+const APP_VERSION = '1.6.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -67,6 +68,20 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
+  const [ronToEurRate, setRonToEurRate] = useState<number | null>(null);
+
+  const fetchExchangeRate = async () => {
+    try {
+      const res = await fetch('https://api.exchangerate-api.com/v4/latest/RON');
+      const data = await res.json();
+      if (data && data.rates && data.rates.EUR) {
+        setRonToEurRate(data.rates.EUR);
+      }
+    } catch (error) {
+      console.error('Failed to fetch exchange rate, using fallback');
+      setRonToEurRate(0.201); // Fallback approximate rate
+    }
+  };
 
   const toggleOwner = (owner: string) => {
     setSelectedOwners(prev => {
@@ -152,6 +167,10 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
+    fetchExchangeRate();
+    // Refresh exchange rate every hour
+    const interval = setInterval(fetchExchangeRate, 3600000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleAddAccount = async (e: React.FormEvent) => {
@@ -403,6 +422,31 @@ export default function App() {
   const banks = React.useMemo(() => 
     Array.from(new Set(accounts.map(a => a.bank_name))).sort() as string[]
   , [accounts]);
+
+  const dueSoonAccounts = React.useMemo(() => {
+    return accounts
+      .filter(a => a.is_active && a.due_date)
+      .map(a => {
+        const dueDate = new Date(a.due_date);
+        const now = new Date();
+        const diffTime = dueDate.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return { ...a, daysLeft: diffDays };
+      })
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+  }, [accounts]);
+
+  const currencySnapshot = React.useMemo(() => {
+    if (!ronToEurRate) return null;
+    const ronTotal = totalBalances['RON'] || 0;
+    const eurTotal = totalBalances['EUR'] || 0;
+    const convertedRon = ronTotal * ronToEurRate;
+    return {
+      totalEur: eurTotal + convertedRon,
+      rate: ronToEurRate,
+      ronContribution: convertedRon
+    };
+  }, [totalBalances, ronToEurRate]);
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden relative">
@@ -957,6 +1001,129 @@ export default function App() {
                   </div>
 
                   <div className="col-span-12 lg:col-span-4 space-y-6">
+                    {/* Currency Snapshot */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 bg-emerald-600 rounded-lg shadow-lg shadow-emerald-100">
+                               <Banknote size={16} className="text-white" />
+                             </div>
+                             <div>
+                               <h2 className="font-bold text-sm tracking-tight text-gray-900">Currency Snapshot</h2>
+                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Consolidated EUR</p>
+                             </div>
+                           </div>
+                           {currencySnapshot && (
+                             <div className="bg-emerald-50 px-2 py-1 rounded text-[10px] font-bold text-emerald-700 border border-emerald-100 italic">
+                               Live Rate
+                             </div>
+                           )}
+                        </div>
+
+                        {currencySnapshot ? (
+                          <div className="space-y-4">
+                            <div>
+                               <div className="flex items-baseline gap-2 mb-1">
+                                  <span className="text-3xl font-black text-gray-900 tracking-tighter">
+                                    {formatCurrency(currencySnapshot.totalEur, 'EUR')}
+                                  </span>
+                               </div>
+                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Combined Capital</p>
+                            </div>
+                            
+                            <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-2">
+                               <div className="flex justify-between items-center text-[10px]">
+                                 <span className="text-gray-500 font-medium uppercase">Direct EUR</span>
+                                 <span className="font-bold text-gray-900">{formatCurrency(totalBalances['EUR'] || 0, 'EUR')}</span>
+                               </div>
+                               <div className="flex justify-between items-center text-[10px]">
+                                 <span className="text-gray-500 font-medium uppercase">Converted RON</span>
+                                 <span className="font-bold text-gray-900">{formatCurrency(currencySnapshot.ronContribution, 'EUR')}</span>
+                               </div>
+                               <div className="h-px bg-gray-200 mt-1" />
+                               <div className="flex justify-between items-center pt-1">
+                                 <span className="text-[9px] text-gray-400 font-bold uppercase">1 RON ≈</span>
+                                 <span className="text-[10px] font-black text-emerald-600 italic">{(currencySnapshot.rate).toFixed(4)} EUR</span>
+                               </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-12 flex flex-col items-center justify-center space-y-3 opacity-40">
+                             <TrendingUp size={24} className="text-gray-300 animate-pulse" />
+                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Synching rates...</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* The Due Radar */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-100">
+                               <Radar size={16} className="text-white animate-pulse" />
+                             </div>
+                             <div>
+                               <h2 className="font-bold text-sm tracking-tight">The Due Radar</h2>
+                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Priority Watchlist</p>
+                             </div>
+                           </div>
+                           <div className="flex -space-x-2">
+                             {dueSoonAccounts.slice(0, 3).map((a, i) => (
+                               <div key={a.id} className="w-6 h-6 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-400" title={a.owner}>
+                                 {a.owner.substring(0, 1)}
+                               </div>
+                             ))}
+                           </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {dueSoonAccounts.slice(0, 3).map(acc => (
+                            <div key={acc.id} className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all cursor-pointer group/item" onClick={() => setActiveTab('accounts')}>
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter mb-0.5">{acc.bank_name}</p>
+                                  <p className="text-xs font-bold text-gray-900 group-hover/item:text-blue-700 transition-colors uppercase tracking-tight">{acc.name}</p>
+                                </div>
+                                <div className={`px-2 py-1 rounded-lg text-[10px] font-black italic shadow-sm ${
+                                  acc.daysLeft <= 0 ? 'bg-red-500 text-white animate-elegant-pulse' :
+                                  acc.daysLeft <= 10 ? 'bg-orange-500 text-white' :
+                                  acc.daysLeft <= 31 ? 'bg-blue-600 text-white' :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {acc.daysLeft === 0 ? 'DUE TODAY' : acc.daysLeft < 0 ? 'OVERDUE' : `T-MINUS ${acc.daysLeft}D`}
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                 <div className="flex items-center gap-1.5">
+                                   <CalendarDays size={10} className="text-gray-400" />
+                                   <span className="text-[10px] font-medium text-gray-500">{formatDate(acc.due_date, 'long')}</span>
+                                 </div>
+                                 <p className="text-xs font-black text-gray-900">{formatCurrency(acc.current_balance, acc.currency)}</p>
+                              </div>
+                            </div>
+                          ))}
+                          {dueSoonAccounts.length === 0 && (
+                            <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active targets on radar</p>
+                            </div>
+                          )}
+                        </div>
+                        {dueSoonAccounts.length > 3 && (
+                          <button 
+                            onClick={() => setActiveTab('accounts')}
+                            className="w-full mt-4 py-2 text-[10px] font-bold text-gray-400 hover:text-blue-600 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                          >
+                            View all {dueSoonAccounts.length} scheduled items <ArrowRight size={10} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                       <div className="flex items-center justify-between mb-4">
                         <h2 className="font-semibold text-sm flex items-center gap-2">
@@ -989,11 +1156,11 @@ export default function App() {
                             return a.owner.localeCompare(b.owner);
                           })
                           .map(acc => (
-                          <div key={acc.id} className="flex gap-3 group cursor-pointer" onClick={() => setActiveTab('accounts')}>
+                          <div key={acc.id} className="flex gap-3">
                             <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
                             <div className="flex-1">
                               <div className="flex justify-between items-start">
-                                <p className="text-xs text-gray-800 font-semibold group-hover:text-blue-600 transition-colors uppercase tracking-tight">{acc.name}</p>
+                                <p className="text-xs text-gray-800 font-semibold uppercase tracking-tight">{acc.name}</p>
                                 <p className="text-xs font-bold whitespace-nowrap">{formatCurrency(acc.current_balance, acc.currency)}</p>
                               </div>
                               <div className="flex justify-between items-center mt-1">
@@ -1009,9 +1176,6 @@ export default function App() {
                           </div>
                         ))}
                       </div>
-                      <Button variant="outline" className="w-full mt-6 border-gray-100 text-xs py-1" onClick={() => setActiveTab('accounts')}>
-                        Manage All Accounts
-                      </Button>
                     </div>
 
                   </div>
