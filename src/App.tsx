@@ -47,8 +47,9 @@ import {
   Legend, 
   ResponsiveContainer
 } from 'recharts';
+import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.6.6';
+const APP_VERSION = '1.6.8';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -139,6 +140,7 @@ export default function App() {
     to_account_id: '',
     type: 'DEPOSIT',
     amount: 0,
+    interestAmount: 0,
     description: '',
     date: new Date().toISOString().split('T')[0]
   });
@@ -217,30 +219,51 @@ export default function App() {
         }
       }
 
+      // Step 1: Process main transaction
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...newTx,
           account_id: sourceId,
           to_account_id: targetId,
+          type: newTx.type,
           amount: Math.round(parseFloat(newTx.amount.toString()) * 100) / 100,
+          description: newTx.description || (newTx.type === 'TRANSFER' ? 'Transfer' : ''),
           date: newTx.date
         })
       });
-      if (res.ok) {
-        toast.success('Transaction processed');
-        setIsTransactionOpen(false);
-        setNewTx({ 
-          account_id: '', 
-          to_account_id: '', 
-          type: 'DEPOSIT', 
-          amount: 0, 
-          description: '',
-          date: new Date().toISOString().split('T')[0]
+
+      if (!res.ok) throw new Error('Primary transaction failed');
+
+      // Step 2: Process interest if applicable (only for Transfers)
+      if (newTx.type === 'TRANSFER' && newTx.interestAmount > 0 && targetId !== null) {
+        const interestRes = await fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            account_id: targetId,
+            to_account_id: null,
+            type: 'DEPOSIT',
+            amount: Math.round(parseFloat(newTx.interestAmount.toString()) * 100) / 100,
+            description: `Interest: ${newTx.description || 'Transfer Component'}`,
+            date: newTx.date
+          })
         });
-        fetchData();
+        if (!interestRes.ok) toast.error('Transfer succeeded, but interest logging failed');
       }
+
+      toast.success(newTx.type === 'TRANSFER' && newTx.interestAmount > 0 ? 'Transfer and Interest processed' : 'Transaction processed');
+      setIsTransactionOpen(false);
+      setNewTx({ 
+        account_id: '', 
+        to_account_id: '', 
+        type: 'DEPOSIT', 
+        amount: 0, 
+        interestAmount: 0,
+        description: '',
+        date: new Date().toISOString().split('T')[0]
+      });
+      fetchData();
     } catch (error) {
       toast.error('Failed to process transaction');
     }
@@ -1345,8 +1368,19 @@ export default function App() {
                                   <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
                                     <Building2 size={16} />
                                   </div>
-                                  <div>
-                                    <div className="text-sm font-bold text-gray-900 leading-none mb-1">{acc.name}</div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <div className="text-sm font-bold text-gray-900 leading-none truncate">{acc.name}</div>
+                                      {acc.description && (
+                                        <div className="group/info relative">
+                                          <Info size={12} className="text-gray-300 hover:text-blue-500 cursor-help transition-colors" />
+                                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 shadow-xl pointer-events-none normal-case font-normal">
+                                            {acc.description}
+                                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                     <div className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{acc.bank_name}</div>
                                   </div>
                                 </div>
@@ -1430,8 +1464,19 @@ export default function App() {
                                       <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 shrink-0 italic">
                                         <Building2 size={16} />
                                       </div>
-                                      <div>
-                                        <div className="text-sm font-bold text-gray-500 leading-none mb-1 line-through">{acc.name}</div>
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                          <div className="text-sm font-bold text-gray-500 leading-none truncate line-through">{acc.name}</div>
+                                          {acc.description && (
+                                            <div className="group/info relative">
+                                              <Info size={12} className="text-gray-300 hover:text-blue-500 cursor-help transition-colors" />
+                                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 bg-gray-900 text-white text-[10px] rounded-lg opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 shadow-xl pointer-events-none normal-case font-normal no-underline">
+                                                {acc.description}
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
                                         <div className="text-[10px] text-gray-300 font-medium uppercase tracking-tight">{acc.bank_name}</div>
                                       </div>
                                     </div>
@@ -1510,9 +1555,12 @@ export default function App() {
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${acc.is_active ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
                                 <Building2 size={16} />
                               </div>
-                              <div>
-                                <div className={`text-sm font-bold ${acc.is_active ? 'text-gray-900' : 'text-gray-500 line-through'}`}>{acc.name}</div>
-                                <div className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{acc.bank_name}</div>
+                              <div className="min-w-0">
+                                <div className={`text-sm font-bold truncate ${acc.is_active ? 'text-gray-900' : 'text-gray-500 line-through'}`}>{acc.name}</div>
+                                <div className="text-[10px] text-gray-400 font-medium uppercase tracking-tight mb-1">{acc.bank_name}</div>
+                                {acc.description && (
+                                  <p className="text-[10px] text-gray-400 italic line-clamp-1">{acc.description}</p>
+                                )}
                               </div>
                             </div>
                             <div className="flex gap-1">
@@ -1901,6 +1949,34 @@ export default function App() {
                   }
                 }}
               />
+
+            {newTx.type === 'TRANSFER' && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                <div className="flex items-center justify-between">
+                  <Label className="text-emerald-600 flex items-center gap-1.5">
+                    <TrendingUp size={14} /> Interest Amount (Optional)
+                  </Label>
+                  <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter bg-emerald-50 px-1.5 rounded">Separate Ledger Entry</span>
+                </div>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  className="bg-white border-emerald-100 focus:ring-emerald-100 text-emerald-900 font-semibold" 
+                  value={isNaN(newTx.interestAmount) ? '' : (newTx.interestAmount === 0 ? '' : newTx.interestAmount)} 
+                  placeholder="0.00"
+                  onChange={e => {
+                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setNewTx({...newTx, interestAmount: val});
+                  }} 
+                  onBlur={e => {
+                    const val = parseFloat(e.target.value);
+                    if (!isNaN(val)) {
+                      setNewTx({...newTx, interestAmount: Math.round(val * 100) / 100});
+                    }
+                  }}
+                />
+              </div>
+            )}
             
             <div className="space-y-2">
               <Label>Description</Label>
