@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.6.8';
+const APP_VERSION = '1.7.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -470,6 +470,34 @@ export default function App() {
       ronContribution: convertedRon
     };
   }, [totalBalances, ronToEurRate]);
+
+  const ownerPulse = React.useMemo(() => {
+    const breakdown: Record<string, { RON: number, EUR: number }> = {};
+    
+    filteredAccountsForStats
+      .filter(a => a.is_active)
+      .forEach(acc => {
+        if (!breakdown[acc.owner]) {
+          breakdown[acc.owner] = { RON: 0, EUR: 0 };
+        }
+        if (acc.currency === 'RON' || acc.currency === 'EUR') {
+          breakdown[acc.owner][acc.currency] += acc.current_balance;
+        }
+      });
+    
+    const entries = Object.entries(breakdown).map(([owner, balances]) => ({
+      owner,
+      ...balances,
+      totalNormalized: (balances.RON * (ronToEurRate || 0.201)) + balances.EUR
+    }));
+    
+    const grandTotal = entries.reduce((sum, e) => sum + e.totalNormalized, 0);
+    
+    return entries.map(e => ({
+      ...e,
+      percentage: grandTotal > 0 ? (e.totalNormalized / grandTotal) * 100 : 0
+    })).sort((a, b) => b.totalNormalized - a.totalNormalized);
+  }, [filteredAccountsForStats, ronToEurRate]);
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden relative">
@@ -971,56 +999,72 @@ export default function App() {
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-sm border-gray-100 rounded-xl overflow-hidden">
-                      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                        <h2 className="font-semibold">Recent Transactions</h2>
-                        <button className="text-xs text-blue-600 font-medium hover:underline" onClick={() => setActiveTab('transactions')}>View All Activity</button>
-                      </div>
-                      <div className="overflow-hidden">
-                        <Table>
-                          <TableHeader className="text-[11px] uppercase tracking-wider text-gray-400 bg-gray-50/50">
-                            <TableRow>
-                              <TableHead className="px-6">Description</TableHead>
-                              <TableHead>Type</TableHead>
-                              <TableHead className="text-right px-6">Amount</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {transactions
-                              .filter(tx => 
-                                tx.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                accounts.find(a => a.id === tx.account_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-                              )
-                              .slice(0, 5).map((tx) => (
-                              <TableRow key={tx.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-6 py-4">
-                                  <p className="text-sm font-medium">{tx.description || 'System Entry'}</p>
-                                  <p className="text-[10px] text-gray-400 uppercase">
-                                    {formatDate(tx.date)}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -top-10 -right-10 w-32 h-32 bg-slate-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 bg-slate-800 rounded-lg shadow-lg shadow-slate-100">
+                               <History size={16} className="text-white" />
+                             </div>
+                             <div>
+                               <h2 className="font-bold text-sm tracking-tight text-slate-900">Recent Activity</h2>
+                               <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Latest transactions</p>
+                             </div>
+                           </div>
+                           <button 
+                             onClick={() => setActiveTab('transactions')}
+                             className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest transition-colors flex items-center gap-1"
+                           >
+                             Full Board <ArrowRight size={10} />
+                           </button>
+                        </div>
+
+                        <div className="space-y-3">
+                          {transactions
+                            .filter(tx => 
+                              tx.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              accounts.find(a => a.id === tx.account_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+                            )
+                            .slice(0, 5).map((tx) => (
+                            <div key={tx.id} className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 hover:bg-white hover:border-slate-100 hover:shadow-md transition-all cursor-pointer group/item" onClick={() => setActiveTab('transactions')}>
+                              <div className="flex justify-between items-start mb-1">
+                                <div className="min-w-0 flex-1 pr-4">
+                                  <p className="text-xs font-bold text-slate-900 group-hover/item:text-blue-700 transition-colors uppercase tracking-tight truncate">
+                                    {tx.description || 'System Entry'}
                                   </p>
-                                </td>
-                                <td className="py-4">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    tx.type === 'DEPOSIT' ? 'bg-green-50 text-green-700' : 
-                                    tx.type === 'WITHDRAWAL' ? 'bg-red-50 text-red-700' : 
-                                    'bg-blue-50 text-blue-700'
-                                  }`}>
-                                    {tx.type}
-                                  </span>
-                                </td>
-                                <td className={`px-6 py-4 text-right text-sm font-semibold ${
-                                  tx.type === 'DEPOSIT' ? 'text-green-600' : tx.type === 'WITHDRAWAL' ? 'text-red-500' : 'text-blue-600'
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className={`text-[9px] font-black italic tracking-tighter ${
+                                      tx.type === 'DEPOSIT' ? 'text-emerald-600' : 
+                                      tx.type === 'WITHDRAWAL' ? 'text-rose-500' : 
+                                      'text-blue-600'
+                                    }`}>
+                                      {tx.type}
+                                    </span>
+                                    <span className="text-slate-200">•</span>
+                                    <span className="text-[9px] font-medium text-slate-400 uppercase tracking-tighter">
+                                      {formatDate(tx.date)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className={`text-sm font-black shrink-0 ${
+                                  tx.type === 'DEPOSIT' ? 'text-emerald-600' : tx.type === 'WITHDRAWAL' ? 'text-rose-500' : 'text-blue-600'
                                 }`}>
                                   {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '-' : '+'}
                                   {formatCurrency(tx.amount, tx.currency)}
-                                </td>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {transactions.length === 0 && (
+                            <div className="py-12 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">No activity recorded</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </Card>
+                    </div>
                   </div>
 
                   <div className="col-span-12 lg:col-span-4 space-y-6">
@@ -1147,57 +1191,123 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="font-semibold text-sm flex items-center gap-2">
-                          <CreditCard size={16} className="text-blue-600" /> Accounts
-                        </h2>
-                        <Select 
-                          value={dashboardAccountSort} 
-                          onValueChange={(v: 'balance' | 'name' | 'due_date') => setDashboardAccountSort(v)}
-                        >
-                          <SelectTrigger className="h-7 w-[110px] text-[10px] border-none bg-gray-50 shadow-none">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                          <SelectItem value="balance" label="Sort: Balance">Sort: Balance</SelectItem>
-                          <SelectItem value="name" label="Sort: Owner">Sort: Owner</SelectItem>
-                          <SelectItem value="due_date" label="Sort: Due Date">Sort: Due Date</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-4">
-                        {filteredAccountsForStats
-                          .filter(a => a.is_active)
-                          .sort((a,b) => {
-                            if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
-                            if (dashboardAccountSort === 'due_date') {
-                              if (!a.due_date) return 1;
-                              if (!b.due_date) return -1;
-                              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-                            }
-                            return a.owner.localeCompare(b.owner);
-                          })
-                          .map(acc => (
-                          <div key={acc.id} className="flex gap-3">
-                            <div className="w-2 h-2 rounded-full bg-blue-600 mt-2"></div>
-                            <div className="flex-1">
-                              <div className="flex justify-between items-start">
-                                <p className="text-xs text-gray-800 font-semibold uppercase tracking-tight">{acc.name}</p>
-                                <p className="text-xs font-bold whitespace-nowrap">{formatCurrency(acc.current_balance, acc.currency)}</p>
+                    {/* The Owner Pulse */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -top-10 -left-10 w-32 h-32 bg-blue-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-100">
+                               <TrendingUp size={16} className="text-white" />
+                             </div>
+                             <div>
+                               <h2 className="font-bold text-sm tracking-tight">The Owner Pulse</h2>
+                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Contribution Breakdown</p>
+                             </div>
+                           </div>
+                        </div>
+
+                        <div className="space-y-5">
+                          {ownerPulse.map((op, idx) => (
+                            <div key={op.owner} className="space-y-1.5">
+                              <div className="flex justify-between items-end">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-xs font-black text-gray-900 uppercase tracking-tight">{op.owner}</span>
+                                  <span className="text-[9px] font-bold text-gray-400">{op.percentage.toFixed(1)}%</span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] font-black text-gray-900 leading-none">
+                                    {op.EUR > 0 && formatCurrency(op.EUR, 'EUR')}
+                                    {op.EUR > 0 && op.RON > 0 && <span className="mx-1 text-gray-300">|</span>}
+                                    {op.RON > 0 && formatCurrency(op.RON, 'RON')}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="flex justify-between items-center mt-1">
-                                <p className="text-[10px] text-gray-400 uppercase font-medium">{acc.bank_name}</p>
-                                {acc.due_date && (
-                                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${getDueDateTheme(acc.due_date)}`}>
-                                    <CalendarDays size={10} />
-                                    <span className="text-[9px] font-bold whitespace-nowrap">{formatDate(acc.due_date, 'long')}</span>
-                                  </div>
-                                )}
+                              <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                <motion.div 
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${op.percentage}%` }}
+                                  transition={{ duration: 1, delay: idx * 0.1, ease: "easeOut" }}
+                                  className={`h-full rounded-full ${
+                                    idx === 0 ? 'bg-blue-600' : 
+                                    idx === 1 ? 'bg-blue-400' : 
+                                    'bg-blue-200'
+                                  }`}
+                                />
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                          {ownerPulse.length === 0 && (
+                            <div className="py-8 text-center bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No active data points</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-6">
+                           <div className="flex items-center gap-2">
+                             <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-100">
+                               <Building2 size={16} className="text-white" />
+                             </div>
+                             <div>
+                               <h2 className="font-bold text-sm tracking-tight text-indigo-900">Accounts</h2>
+                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Managed Balances</p>
+                             </div>
+                           </div>
+                           <Select 
+                            value={dashboardAccountSort} 
+                            onValueChange={(v: 'balance' | 'name' | 'due_date') => setDashboardAccountSort(v)}
+                          >
+                            <SelectTrigger className="h-7 w-[110px] text-[10px] border-none bg-gray-50 shadow-none font-bold uppercase tracking-tighter">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="balance" label="Sort: Balance">Sort: Balance</SelectItem>
+                              <SelectItem value="name" label="Sort: Owner">Sort: Owner</SelectItem>
+                              <SelectItem value="due_date" label="Sort: Due Date">Sort: Due Date</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-4">
+                          {filteredAccountsForStats
+                            .filter(a => a.is_active)
+                            .sort((a,b) => {
+                              if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
+                              if (dashboardAccountSort === 'due_date') {
+                                if (!a.due_date) return 1;
+                                if (!b.due_date) return -1;
+                                return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                              }
+                              return a.owner.localeCompare(b.owner);
+                            })
+                            .map(acc => (
+                            <div key={acc.id} className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 transition-all">
+                              <div className="flex gap-3">
+                                <div className="w-2 h-2 rounded-full bg-indigo-600 mt-2 shrink-0"></div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-start mb-1">
+                                    <p className="text-xs font-bold text-indigo-900 uppercase tracking-tight truncate pr-2">{acc.name}</p>
+                                    <p className="text-xs font-black text-gray-900 shrink-0">{formatCurrency(acc.current_balance, acc.currency)}</p>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <p className="text-[10px] text-gray-400 uppercase font-medium tracking-tighter">{acc.bank_name}</p>
+                                    {acc.due_date && (
+                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${getDueDateTheme(acc.due_date)}`}>
+                                        <CalendarDays size={10} />
+                                        <span className="text-[9px] font-bold whitespace-nowrap">{formatDate(acc.due_date, 'long')}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
