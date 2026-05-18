@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.7.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -470,6 +470,23 @@ export default function App() {
       ronContribution: convertedRon
     };
   }, [totalBalances, ronToEurRate]);
+
+  const sortedAccountsForDropdown = React.useMemo(() => {
+    return [...accounts]
+      .filter(a => a.is_active)
+      .sort((a, b) => {
+        // 1. Account owner
+        const ownerCompare = a.owner.localeCompare(b.owner);
+        if (ownerCompare !== 0) return ownerCompare;
+        
+        // 2. Bank Name
+        const bankCompare = a.bank_name.localeCompare(b.bank_name);
+        if (bankCompare !== 0) return bankCompare;
+        
+        // 3. Account name
+        return a.name.localeCompare(b.name);
+      });
+  }, [accounts]);
 
   const ownerPulse = React.useMemo(() => {
     const breakdown: Record<string, { RON: number, EUR: number }> = {};
@@ -1985,10 +2002,10 @@ export default function App() {
             </div>
             <div className="space-y-2">
               <Label>{newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}</Label>
-              <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
+                <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
                 <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
                 <SelectContent>
-                  {accounts.filter(acc => acc.is_active).map(acc => (
+                  {sortedAccountsForDropdown.map(acc => (
                     <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
                       {acc.owner}: {acc.name} • {acc.bank_name}
                     </SelectItem>
@@ -2014,8 +2031,8 @@ export default function App() {
                 <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
                   <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
                   <SelectContent>
-                    {accounts
-                      .filter(a => a.is_active && String(a.id) !== String(newTx.account_id))
+                    {sortedAccountsForDropdown
+                      .filter(a => String(a.id) !== String(newTx.account_id))
                       .filter(a => {
                         const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
                         return !sourceAcc || a.currency === sourceAcc.currency;
