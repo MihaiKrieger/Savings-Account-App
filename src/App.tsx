@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.2';
+const APP_VERSION = '1.7.4';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -848,15 +848,21 @@ export default function App() {
                 {/* Grid Split */}
                 <div className="grid grid-cols-12 gap-6 pb-8">
                   <div className="col-span-12 lg:col-span-8 space-y-6">
-                    <Card className="shadow-sm border-gray-100 rounded-xl overflow-hidden">
-                      <CardHeader className="bg-gray-50/30 border-b border-gray-100 pb-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <CardTitle className="text-base font-bold text-gray-800">Portfolio Evolution</CardTitle>
-                            <CardDescription className="text-xs">Growth across {selectedYear === 'all' ? 'all time' : selectedYear}</CardDescription>
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -top-10 -right-10 w-48 h-48 bg-blue-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-100">
+                              <TrendingUp size={16} className="text-white" />
+                            </div>
+                            <div>
+                              <h2 className="font-bold text-sm tracking-tight">Portfolio Evolution</h2>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {selectedYear === 'all' ? 'all time' : selectedYear}</p>
+                            </div>
                           </div>
-                          <div className="flex bg-gray-100 p-1 rounded-lg gap-1">
-                            <div className="flex bg-white/50 p-0.5 rounded-md mr-2">
+                          <div className="flex bg-gray-50 p-1 rounded-lg gap-1 border border-gray-100">
+                            <div className="flex bg-white/50 p-0.5 rounded-md mr-1">
                               <button 
                                 onClick={() => setChartCurrencyFilter('all')}
                                 className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
@@ -876,27 +882,26 @@ export default function App() {
                                 EUR
                               </button>
                             </div>
-                            <div className="flex items-center">
+                            <div className="flex items-center gap-0.5">
                               <button 
                                 onClick={() => setChartView('bar')}
                                 className={`p-1.5 rounded-md transition-all ${chartView === 'bar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                                 title="Bar Chart"
                               >
-                                <BarChart3 size={16} />
+                                <BarChart3 size={14} />
                               </button>
                               <button 
                                 onClick={() => setChartView('line')}
                                 className={`p-1.5 rounded-md transition-all ${chartView === 'line' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                                 title="Line Chart"
                               >
-                                <LineChartIcon size={16} />
+                                <LineChartIcon size={14} />
                               </button>
                             </div>
                           </div>
                         </div>
-                      </CardHeader>
-                      <CardContent className="h-[300px] sm:h-[380px] pt-8">
-                        <ResponsiveContainer width="100%" height="100%" debounce={250}>
+                        <div className="h-[450px] sm:h-[550px]">
+                          <ResponsiveContainer width="100%" height="100%" debounce={250}>
                           {chartView === 'bar' ? (
                             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -1037,8 +1042,9 @@ export default function App() {
                             </LineChart>
                           )}
                         </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
                       <div className="absolute -top-10 -right-10 w-32 h-32 bg-slate-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
