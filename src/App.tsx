@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '1.7.2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -805,18 +805,42 @@ export default function App() {
                 {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                   {(Object.entries(totalBalances) as [string, number][]).map(([curr, amount]) => (
-                    <div key={curr} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm transition-hover hover:border-blue-100">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Total {curr}</p>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-bold">{formatCurrency(amount, curr)}</span>
+                    <div key={curr} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className={`absolute -top-10 -right-10 w-32 h-32 ${curr === 'RON' ? 'bg-orange-50' : 'bg-blue-50'} rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700`}></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className={`p-2 ${curr === 'RON' ? 'bg-[#F97316]' : 'bg-blue-600'} rounded-lg shadow-lg ${curr === 'RON' ? 'shadow-orange-100' : 'shadow-blue-100'}`}>
+                            <Banknote size={16} className="text-white" />
+                          </div>
+                          <div>
+                            <h2 className="font-bold text-sm tracking-tight">Total {curr}</h2>
+                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Liquid Assets</p>
+                          </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-2xl font-bold">{formatCurrency(amount, curr)}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
-                  <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Active Accounts</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">{accounts.filter(a => a.is_active).length}</span>
-                      <span className="text-xs font-medium text-blue-600">Across {new Set(accounts.filter(a => a.is_active).map(a => a.bank_name)).size} Banks</span>
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-100">
+                          <CreditCard size={16} className="text-white" />
+                        </div>
+                        <div>
+                          <h2 className="font-bold text-sm tracking-tight">Active Accounts</h2>
+                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Connected Vaults</p>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold">{accounts.filter(a => a.is_active).length}</span>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                          Across {new Set(accounts.filter(a => a.is_active).map(a => a.bank_name)).size} Banks
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
