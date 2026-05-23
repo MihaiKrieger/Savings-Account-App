@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.8';
+const APP_VERSION = '1.8.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -426,12 +426,17 @@ export default function App() {
     // 4. Build the result array
     const result: any[] = [];
     let currentBalances = { ...startBalances };
+    const rateVal = ronToEurRate || 0.201;
 
     if (days.length === 0 && selectedYears.length === 0) {
        // No transactions ever, just show today
+       const ronVal = Math.round(currentBalances.RON * 100) / 100;
+       const eurVal = Math.round(currentBalances.EUR * 100) / 100;
        result.push({
          day: today,
-         ...currentBalances
+         RON: ronVal,
+         EUR: eurVal,
+         EUR_scaled: Math.round((eurVal / rateVal) * 100) / 100
        });
        return result;
     }
@@ -440,10 +445,13 @@ export default function App() {
       currencies.forEach(curr => {
         currentBalances[curr] += dailyChanges[day][curr] || 0;
       });
+      const ronVal = Math.round(currentBalances.RON * 100) / 100;
+      const eurVal = Math.round(currentBalances.EUR * 100) / 100;
       result.push({
         day,
-        RON: Math.round(currentBalances.RON * 100) / 100,
-        EUR: Math.round(currentBalances.EUR * 100) / 100
+        RON: ronVal,
+        EUR: eurVal,
+        EUR_scaled: Math.round((eurVal / rateVal) * 100) / 100
       });
     });
 
@@ -482,7 +490,8 @@ export default function App() {
         monthlyResult.push({
           day: repDate,
           RON: lastKnownRon,
-          EUR: lastKnownEur
+          EUR: lastKnownEur,
+          EUR_scaled: Math.round((lastKnownEur / rateVal) * 100) / 100
         });
         
         currentMonth++;
@@ -495,7 +504,7 @@ export default function App() {
     }
 
     return result;
-  }, [accounts, analytics, selectedOwners, selectedBank, selectedYears]);
+  }, [accounts, analytics, selectedOwners, selectedBank, selectedYears, ronToEurRate]);
   
   const years = React.useMemo(() => 
     Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse()
@@ -980,7 +989,7 @@ export default function App() {
                             </div>
                             <div>
                               <h2 className="font-bold text-sm tracking-tight">Portfolio Evolution</h2>
-                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getYearsLabel()}</p>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getYearsLabel()} • EUR scaled to RON baseline for visual proportion</p>
                             </div>
                           </div>
                           <div className="flex bg-gray-50 p-1 rounded-lg gap-1 border border-gray-100">
@@ -1059,6 +1068,19 @@ export default function App() {
                                 tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
                               />
                               <Tooltip 
+                                formatter={(value: any, name: string, props: any) => {
+                                  if (name === 'EUR') {
+                                    const rawEur = props.payload?.EUR;
+                                    return [
+                                      `${formatCurrency(rawEur ?? 0, 'EUR')} (~${formatCurrency(value ?? 0, 'RON')} equivalent)`,
+                                      'EUR'
+                                    ];
+                                  }
+                                  if (name === 'RON') {
+                                    return [formatCurrency(value, 'RON'), 'RON'];
+                                  }
+                                  return [value, name];
+                                }}
                                 contentStyle={{ 
                                   borderRadius: '12px', 
                                   border: 'none', 
@@ -1097,7 +1119,8 @@ export default function App() {
                               )}
                               {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
                                 <Bar 
-                                  dataKey="EUR" 
+                                  dataKey="EUR_scaled" 
+                                  name="EUR"
                                   fill="#2563EB" 
                                   radius={[4, 4, 0, 0]}
                                   maxBarSize={40}
@@ -1138,6 +1161,19 @@ export default function App() {
                                 tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
                               />
                               <Tooltip 
+                                formatter={(value: any, name: string, props: any) => {
+                                  if (name === 'EUR') {
+                                    const rawEur = props.payload?.EUR;
+                                    return [
+                                      `${formatCurrency(rawEur ?? 0, 'EUR')} (~${formatCurrency(value ?? 0, 'RON')} equivalent)`,
+                                      'EUR'
+                                    ];
+                                  }
+                                  if (name === 'RON') {
+                                    return [formatCurrency(value, 'RON'), 'RON'];
+                                  }
+                                  return [value, name];
+                                }}
                                 contentStyle={{ 
                                   borderRadius: '12px', 
                                   border: 'none', 
@@ -1179,7 +1215,8 @@ export default function App() {
                               {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
                                 <Line 
                                   type="monotone" 
-                                  dataKey="EUR" 
+                                  dataKey="EUR_scaled" 
+                                  name="EUR"
                                   stroke="#2563EB" 
                                   strokeWidth={2.5} 
                                   dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
