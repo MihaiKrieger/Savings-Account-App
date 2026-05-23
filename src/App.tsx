@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.0';
+const APP_VERSION = '1.8.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -487,12 +487,20 @@ export default function App() {
         // Representative date of the month: YYYY-MM-01
         const repDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
         
-        monthlyResult.push({
-          day: repDate,
-          RON: lastKnownRon,
-          EUR: lastKnownEur,
-          EUR_scaled: Math.round((lastKnownEur / rateVal) * 100) / 100
+        // Only include the month if there are recorded transaction/balance changes within it
+        const hasChangesInMonth = periodAnalytics.some(ana => {
+          const anaDate = new Date(ana.day);
+          return anaDate.getFullYear() === currentYear && anaDate.getMonth() === currentMonth;
         });
+        
+        if (hasChangesInMonth) {
+          monthlyResult.push({
+            day: repDate,
+            RON: lastKnownRon,
+            EUR: lastKnownEur,
+            EUR_scaled: Math.round((lastKnownEur / rateVal) * 100) / 100
+          });
+        }
         
         currentMonth++;
         if (currentMonth > 11) {
