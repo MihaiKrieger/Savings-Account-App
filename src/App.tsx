@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.5';
+const APP_VERSION = '1.7.7';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -60,7 +60,18 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedBank, setSelectedBank] = useState('all');
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+  const [isYearFilterOpen, setIsYearFilterOpen] = useState(false);
+
+  const toggleYear = (year: string) => {
+    setSelectedYears(prev => {
+      if (prev.includes(year)) {
+        return prev.filter(y => y !== year);
+      } else {
+        return [...prev, year];
+      }
+    });
+  };
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
   const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'RON' | 'EUR'>('all');
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -316,6 +327,17 @@ export default function App() {
     return new Intl.NumberFormat('ro-RO', { style: 'currency', currency }).format(normalized);
   };
 
+  const getYearsLabel = () => {
+    if (selectedYears.length === 0) return 'all time';
+    const sorted = [...selectedYears].map(Number).sort((a,b) => a - b);
+    if (sorted.length === 1) return sorted[0].toString();
+    const isConsecutive = sorted.every((val, index) => index === 0 || val === sorted[index - 1] + 1);
+    if (isConsecutive) {
+      return `${sorted[0]} - ${sorted[sorted.length - 1]}`;
+    }
+    return sorted.join(', ');
+  };
+
   // Prepare Chart Data
   const chartData = React.useMemo(() => {
     const currencies = ['RON', 'EUR'] as const;
@@ -327,7 +349,9 @@ export default function App() {
 
     // 1. Calculate starting balances (balances before the selected period)
     const startBalances: Record<string, number> = { RON: 0, EUR: 0 };
-    const yearStartStr = selectedYear !== 'all' ? `${selectedYear}-01-01` : '1970-01-01';
+    const sortedSelectedYears = [...selectedYears].map(Number).sort((a,b) => a - b);
+    const minYearStr = sortedSelectedYears.length > 0 ? sortedSelectedYears[0].toString() : null;
+    const yearStartStr = minYearStr ? `${minYearStr}-01-01` : '1970-01-01';
     const yearStartTime = new Date(yearStartStr).getTime();
 
     currencies.forEach(curr => {
@@ -356,9 +380,9 @@ export default function App() {
       const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
       if (!(matchesOwner && matchesBank)) return false;
 
-      if (selectedYear === 'all') return true;
+      if (selectedYears.length === 0) return true;
       const year = new Date(ana.day).getFullYear().toString();
-      return year === selectedYear;
+      return selectedYears.includes(year);
     });
 
     // 3. Group by day
@@ -368,12 +392,12 @@ export default function App() {
     const today = new Date().toISOString().split('T')[0];
     const currentYear = new Date().getFullYear().toString();
     
-    if (selectedYear === 'all' || selectedYear === currentYear) {
+    if (selectedYears.length === 0 || selectedYears.includes(currentYear)) {
       dailyChanges[today] = { RON: 0, EUR: 0 };
     }
     
-    if (selectedYear !== 'all') {
-      const startOfYear = `${selectedYear}-01-01`;
+    if (minYearStr) {
+      const startOfYear = `${minYearStr}-01-01`;
       if (!dailyChanges[startOfYear]) dailyChanges[startOfYear] = { RON: 0, EUR: 0 };
     }
 
@@ -392,7 +416,7 @@ export default function App() {
     const result: any[] = [];
     let currentBalances = { ...startBalances };
 
-    if (days.length === 0 && selectedYear === 'all') {
+    if (days.length === 0 && selectedYears.length === 0) {
        // No transactions ever, just show today
        result.push({
          day: today,
@@ -412,7 +436,7 @@ export default function App() {
       });
     });
 
-    if (selectedYear === 'all' && result.length > 0) {
+    if (selectedYears.length === 0 && result.length > 0) {
       const monthlyResult: any[] = [];
       const firstDateText = result[0].day;
       const lastDateText = result[result.length - 1].day;
@@ -460,7 +484,7 @@ export default function App() {
     }
 
     return result;
-  }, [accounts, analytics, selectedOwners, selectedBank, selectedYear]);
+  }, [accounts, analytics, selectedOwners, selectedBank, selectedYears]);
   
   const years = React.useMemo(() => 
     Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse()
@@ -763,19 +787,59 @@ export default function App() {
                   </div>
                   <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-4 justify-end">
-                           <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Year:</span>
-                              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                <SelectTrigger className="w-[100px] h-8 bg-white border-gray-100 shadow-sm text-[11px] font-medium rounded-md">
-                                  <SelectValue placeholder="All Years" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">All Time</SelectItem>
-                                  {years.map(year => (
-                                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                           <div className="flex items-center gap-2 relative">
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Years:</span>
+                              <div className="relative">
+                                <button 
+                                  onClick={() => setIsYearFilterOpen(!isYearFilterOpen)}
+                                  className="flex items-center justify-between w-[120px] h-8 bg-white border border-gray-100 shadow-sm px-3 text-[11px] font-medium rounded-md hover:bg-gray-50 transition-colors shrink-0"
+                                >
+                                  <span className="truncate max-w-[80px]">
+                                    {selectedYears.length === 0 ? 'All Years' : 
+                                     selectedYears.length === 1 ? selectedYears[0] : 
+                                     `${selectedYears.length} Selected`}
+                                  </span>
+                                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${isYearFilterOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                
+                                {isYearFilterOpen && (
+                                  <>
+                                    <div 
+                                      className="fixed inset-0 z-40" 
+                                      onClick={() => setIsYearFilterOpen(false)}
+                                    />
+                                    <div className="absolute top-full right-0 mt-1 w-[150px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
+                                      <button 
+                                        className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                        onClick={() => {
+                                          setSelectedYears([]);
+                                          setIsYearFilterOpen(false);
+                                        }}
+                                      >
+                                        <div className="w-4 h-4 flex items-center justify-center">
+                                          {selectedYears.length === 0 && <Check size={12} className="text-blue-600" />}
+                                        </div>
+                                        <span className={selectedYears.length === 0 ? 'font-bold text-blue-600' : ''}>All Years</span>
+                                      </button>
+                                      
+                                      <div className="h-px bg-gray-100 my-1" />
+                                      
+                                      {years.map(year => (
+                                        <button 
+                                          key={year}
+                                          className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                          onClick={() => toggleYear(year)}
+                                        >
+                                          <div className="w-4 h-4 flex items-center justify-center border border-gray-200 rounded-sm bg-gray-50">
+                                            {selectedYears.includes(year) && <Check size={12} className="text-blue-600" />}
+                                          </div>
+                                          <span className={selectedYears.includes(year) ? 'font-bold text-blue-600' : ''}>{year}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                            </div>
                            <div className="flex items-center gap-2 relative">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Owner:</span>
@@ -905,7 +969,7 @@ export default function App() {
                             </div>
                             <div>
                               <h2 className="font-bold text-sm tracking-tight">Portfolio Evolution</h2>
-                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {selectedYear === 'all' ? 'all time' : selectedYear}</p>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getYearsLabel()}</p>
                             </div>
                           </div>
                           <div className="flex bg-gray-50 p-1 rounded-lg gap-1 border border-gray-100">
@@ -961,7 +1025,7 @@ export default function App() {
                                 dy={10}
                                 tickFormatter={(str) => {
                                   const date = new Date(str);
-                                  if (selectedYear === 'all') {
+                                  if (selectedYears.length === 0) {
                                     return date.toLocaleDateString('en-GB', { 
                                       month: 'short',
                                       year: '2-digit'
@@ -994,7 +1058,7 @@ export default function App() {
                                 labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
                                 labelFormatter={(label) => {
                                   const d = new Date(label);
-                                  if (selectedYear === 'all') {
+                                  if (selectedYears.length === 0) {
                                     return d.toLocaleDateString('en-GB', {
                                       month: 'long',
                                       year: 'numeric'
@@ -1040,7 +1104,7 @@ export default function App() {
                                 dy={10}
                                 tickFormatter={(str) => {
                                   const date = new Date(str);
-                                  if (selectedYear === 'all') {
+                                  if (selectedYears.length === 0) {
                                     return date.toLocaleDateString('en-GB', { 
                                       month: 'short',
                                       year: '2-digit'
@@ -1073,7 +1137,7 @@ export default function App() {
                                 labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
                                 labelFormatter={(label) => {
                                   const d = new Date(label);
-                                  if (selectedYear === 'all') {
+                                  if (selectedYears.length === 0) {
                                     return d.toLocaleDateString('en-GB', {
                                       month: 'long',
                                       year: 'numeric'
