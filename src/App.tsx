@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.4';
+const APP_VERSION = '1.7.5';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -411,6 +411,53 @@ export default function App() {
         EUR: Math.round(currentBalances.EUR * 100) / 100
       });
     });
+
+    if (selectedYear === 'all' && result.length > 0) {
+      const monthlyResult: any[] = [];
+      const firstDateText = result[0].day;
+      const lastDateText = result[result.length - 1].day;
+      
+      const startDate = new Date(firstDateText);
+      const endDate = new Date(lastDateText);
+      
+      let currentYear = startDate.getFullYear();
+      let currentMonth = startDate.getMonth(); // 0-based
+      
+      const targetYear = endDate.getFullYear();
+      const targetMonth = endDate.getMonth();
+      
+      let lastKnownRon = result[0].RON;
+      let lastKnownEur = result[0].EUR;
+      
+      while (currentYear < targetYear || (currentYear === targetYear && currentMonth <= targetMonth)) {
+        // Form the last day of this month (day 0 of next month is the last day of current month)
+        const nextMonthDate = new Date(currentYear, currentMonth + 1, 0);
+        const nextMonthStr = nextMonthDate.toISOString().split('T')[0];
+        
+        // Find the latest record within result whose date falls in or before this month
+        const lastInMonth = [...result].reverse().find(r => r.day <= nextMonthStr);
+        if (lastInMonth) {
+          lastKnownRon = lastInMonth.RON;
+          lastKnownEur = lastInMonth.EUR;
+        }
+        
+        // Representative date of the month: YYYY-MM-01
+        const repDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+        
+        monthlyResult.push({
+          day: repDate,
+          RON: lastKnownRon,
+          EUR: lastKnownEur
+        });
+        
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+      }
+      return monthlyResult;
+    }
 
     return result;
   }, [accounts, analytics, selectedOwners, selectedBank, selectedYear]);
@@ -914,10 +961,16 @@ export default function App() {
                                 dy={10}
                                 tickFormatter={(str) => {
                                   const date = new Date(str);
+                                  if (selectedYear === 'all') {
+                                    return date.toLocaleDateString('en-GB', { 
+                                      month: 'short',
+                                      year: '2-digit'
+                                    });
+                                  }
                                   return date.toLocaleDateString('en-GB', { 
                                     day: '2-digit',
                                     month: '2-digit',
-                                    year: selectedYear === 'all' ? '2-digit' : 'numeric'
+                                    year: 'numeric'
                                   });
                                 }}
                               />
@@ -941,6 +994,12 @@ export default function App() {
                                 labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
                                 labelFormatter={(label) => {
                                   const d = new Date(label);
+                                  if (selectedYear === 'all') {
+                                    return d.toLocaleDateString('en-GB', {
+                                      month: 'long',
+                                      year: 'numeric'
+                                    });
+                                  }
                                   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                                 }}
                               />
@@ -981,10 +1040,16 @@ export default function App() {
                                 dy={10}
                                 tickFormatter={(str) => {
                                   const date = new Date(str);
+                                  if (selectedYear === 'all') {
+                                    return date.toLocaleDateString('en-GB', { 
+                                      month: 'short',
+                                      year: '2-digit'
+                                    });
+                                  }
                                   return date.toLocaleDateString('en-GB', { 
                                     day: '2-digit',
                                     month: '2-digit',
-                                    year: selectedYear === 'all' ? '2-digit' : 'numeric'
+                                    year: 'numeric'
                                   });
                                 }}
                               />
@@ -1008,6 +1073,12 @@ export default function App() {
                                 labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
                                 labelFormatter={(label) => {
                                   const d = new Date(label);
+                                  if (selectedYear === 'all') {
+                                    return d.toLocaleDateString('en-GB', {
+                                      month: 'long',
+                                      year: 'numeric'
+                                    });
+                                  }
                                   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                                 }}
                               />
