@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.7.7';
+const APP_VERSION = '1.7.8';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -62,6 +62,7 @@ export default function App() {
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedYears, setSelectedYears] = useState<string[]>([]);
   const [isYearFilterOpen, setIsYearFilterOpen] = useState(false);
+  const [isChartReady, setIsChartReady] = useState(false);
 
   const toggleYear = (year: string) => {
     setSelectedYears(prev => {
@@ -185,6 +186,16 @@ export default function App() {
     const interval = setInterval(fetchExchangeRate, 3600000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      setIsChartReady(false);
+      const timer = setTimeout(() => setIsChartReady(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setIsChartReady(false);
+    }
+  }, [activeTab]);
 
   const handleAddAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1011,8 +1022,9 @@ export default function App() {
                             </div>
                           </div>
                         </div>
-                        <div className="h-[450px] sm:h-[550px]">
-                          <ResponsiveContainer width="100%" height="100%" debounce={250}>
+                        <div className="h-[450px] sm:h-[550px] w-full min-w-0">
+                          {isChartReady ? (
+                            <ResponsiveContainer width="100%" height="100%" debounce={250}>
                           {chartView === 'bar' ? (
                             <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
@@ -1177,6 +1189,11 @@ export default function App() {
                             </LineChart>
                           )}
                         </ResponsiveContainer>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-lg animate-pulse gap-2 border border-slate-100/50">
+                            <p className="text-[11px] font-medium text-slate-400">Loading chart view...</p>
+                          </div>
+                        )}
                         </div>
                       </div>
                     </div>
