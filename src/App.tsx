@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.2';
+const APP_VERSION = '1.8.3';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -2157,210 +2157,347 @@ export default function App() {
 
       {/* Modals */}
       <Dialog open={isAddAccountOpen} onOpenChange={setIsAddAccountOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add Account</DialogTitle>
-            <DialogDescription>Create a new savings record for tracking.</DialogDescription>
+        <DialogContent className="sm:max-w-[460px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <PiggyBank className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">Add Account</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Create a new savings record</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <form onSubmit={handleAddAccount} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label>Owner Name</Label>
-              <Input 
-                required 
-                className="bg-white border-gray-200" 
-                value={newAccount.owner} 
-                onChange={e => setNewAccount({...newAccount, owner: e.target.value})} 
-                placeholder="e.g. John Doe"
-                list="owners-list"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Bank Name</Label>
-                <Input required className="bg-white border-gray-200" value={newAccount.bank_name} onChange={e => setNewAccount({...newAccount, bank_name: e.target.value})} placeholder="BT, ING..." />
+          <form onSubmit={handleAddAccount} className="space-y-4 mt-2">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Owner Name</Label>
+                <Input 
+                  required 
+                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium" 
+                  value={newAccount.owner} 
+                  onChange={e => setNewAccount({...newAccount, owner: e.target.value})} 
+                  placeholder="e.g. Elena, Mihai"
+                  list="owners-list"
+                />
               </div>
-              <div className="space-y-2">
-                <Label>Account Nickname</Label>
-                <Input required className="bg-white border-gray-200" value={newAccount.name} onChange={e => setNewAccount({...newAccount, name: e.target.value})} placeholder="Emergency Fund" />
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Bank Name</Label>
+                  <Input 
+                    required 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium" 
+                    value={newAccount.bank_name} 
+                    onChange={e => setNewAccount({...newAccount, bank_name: e.target.value})} 
+                    placeholder="e.g. BT, ING, Revolut" 
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Nickname</Label>
+                  <Input 
+                    required 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium" 
+                    value={newAccount.name} 
+                    onChange={e => setNewAccount({...newAccount, name: e.target.value})} 
+                    placeholder="e.g. Holiday Fund" 
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Currency</Label>
+                <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
+                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RON" label="RON">RON</SelectItem>
+                    <SelectItem value="EUR" label="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Description (Optional)</Label>
+                <Input 
+                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all" 
+                  value={newAccount.description} 
+                  onChange={e => setNewAccount({...newAccount, description: e.target.value})} 
+                  placeholder="What is this account used for?"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Due Date (Optional)</Label>
+                <Input 
+                  type="date" 
+                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all" 
+                  value={newAccount.due_date} 
+                  onChange={e => setNewAccount({...newAccount, due_date: e.target.value})} 
+                />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
-                <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="RON" label="RON">RON</SelectItem>
-                  <SelectItem value="EUR" label="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Description (Optional)</Label>
-              <Input className="rounded-lg bg-white border-gray-200" value={newAccount.description} onChange={e => setNewAccount({...newAccount, description: e.target.value})} />
-            </div>
-            <div className="space-y-2">
-              <Label>Due Date (Optional)</Label>
-              <Input type="date" className="rounded-lg bg-white border-gray-200" value={newAccount.due_date} onChange={e => setNewAccount({...newAccount, due_date: e.target.value})} />
-            </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Create Account</Button>
+
+            <DialogFooter className="gap-3 sm:gap-3 flex-row sm:flex-row mt-6 pt-2">
+              <Button 
+                type="button"
+                variant="outline" 
+                className="flex-1 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-10 transition-colors font-medium" 
+                onClick={() => setIsAddAccountOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm shadow-blue-100 cursor-pointer text-xs h-10 transition-all font-semibold active:scale-[0.98]" 
+              >
+                Create Account
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isTransactionOpen} onOpenChange={setIsTransactionOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>New Transaction</DialogTitle>
-            <DialogDescription>Log a new movement on your accounts.</DialogDescription>
+        <DialogContent className="sm:max-w-[460px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <ArrowRightLeft className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">New Transaction</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Log account movement</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <form onSubmit={handleAddTransaction} className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select value={newTx.type} onValueChange={(v: string) => setNewTx({...newTx, type: v})}>
-                <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DEPOSIT" label="Deposit">Deposit</SelectItem>
-                  <SelectItem value="WITHDRAWAL" label="Withdrawal">Withdrawal</SelectItem>
-                  <SelectItem value="TRANSFER" label="Transfer">Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>{newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}</Label>
-                <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
-                <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>
-                  {sortedAccountsForDropdown.map(acc => (
-                    <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
-                      {acc.owner}: {acc.name} • {acc.bank_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {newTx.account_id && (
-                <div className="text-[11px] font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded border border-gray-100 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200">
-                  <span>Current Balance:</span>
-                  <span className="font-bold text-gray-900">
-                    {formatCurrency(
-                      accounts.find(a => String(a.id) === String(newTx.account_id))?.current_balance || 0,
-                      accounts.find(a => String(a.id) === String(newTx.account_id))?.currency || 'RON'
-                    )}
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            {newTx.type === 'TRANSFER' && (
-              <div className="space-y-2">
-                <Label>To Account</Label>
-                <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
-                  <SelectTrigger className="w-full bg-white border-gray-200 shadow-sm"><SelectValue placeholder="Select target account" /></SelectTrigger>
+          <form onSubmit={handleAddTransaction} className="space-y-4 mt-2">
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Transaction Type</Label>
+                <Select value={newTx.type} onValueChange={(v: string) => setNewTx({...newTx, type: v})}>
+                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 rounded-lg shadow-sm transition-all font-medium"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {sortedAccountsForDropdown
-                      .filter(a => String(a.id) !== String(newTx.account_id))
-                      .filter(a => {
-                        const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
-                        return !sourceAcc || a.currency === sourceAcc.currency;
-                      })
-                      .map(acc => (
+                    <SelectItem value="DEPOSIT" label="Deposit">Deposit</SelectItem>
+                    <SelectItem value="WITHDRAWAL" label="Withdrawal">Withdrawal</SelectItem>
+                    <SelectItem value="TRANSFER" label="Transfer">Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}</Label>
+                <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
+                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 rounded-lg shadow-sm transition-all font-medium">
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortedAccountsForDropdown.map(acc => (
                       <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
                         {acc.owner}: {acc.name} • {acc.bank_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {newTx.to_account_id && (
-                  <div className="text-[11px] font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded border border-gray-100 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200">
+                {newTx.account_id && (
+                  <div className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200 mt-1.5">
                     <span>Current Balance:</span>
-                    <span className="font-bold text-gray-900">
+                    <span className="font-mono font-bold text-slate-900">
                       {formatCurrency(
-                        accounts.find(a => String(a.id) === String(newTx.to_account_id))?.current_balance || 0,
-                        accounts.find(a => String(a.id) === String(newTx.to_account_id))?.currency || 'RON'
+                        accounts.find(a => String(a.id) === String(newTx.account_id))?.current_balance || 0,
+                        accounts.find(a => String(a.id) === String(newTx.account_id))?.currency || 'RON'
                       )}
                     </span>
                   </div>
                 )}
               </div>
-            )}
 
-              <Label>Amount</Label>
-              <Input 
-                type="number" 
-                step="0.01" 
-                required 
-                className="bg-white border-gray-200" 
-                value={isNaN(newTx.amount) ? '' : newTx.amount} 
-                onChange={e => {
-                  const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                  setNewTx({...newTx, amount: val});
-                }} 
-                onBlur={e => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val)) {
-                    setNewTx({...newTx, amount: Math.round(val * 100) / 100});
-                  }
-                }}
-              />
-
-            {newTx.type === 'TRANSFER' && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                <div className="flex items-center justify-between">
-                  <Label className="text-emerald-600 flex items-center gap-1.5">
-                    <TrendingUp size={14} /> Interest Amount (Optional)
-                  </Label>
-                  <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-tighter bg-emerald-50 px-1.5 rounded">Separate Ledger Entry</span>
+              {newTx.type === 'TRANSFER' && (
+                <div className="space-y-1.5 animate-in fade-in duration-200">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">To Account</Label>
+                  <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 rounded-lg shadow-sm transition-all font-medium">
+                      <SelectValue placeholder="Select target account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedAccountsForDropdown
+                        .filter(a => String(a.id) !== String(newTx.account_id))
+                        .filter(a => {
+                          const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
+                          return !sourceAcc || a.currency === sourceAcc.currency;
+                        })
+                        .map(acc => (
+                        <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
+                          {acc.owner}: {acc.name} • {acc.bank_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {newTx.to_account_id && (
+                    <div className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200 mt-1.5">
+                      <span>Current Balance:</span>
+                      <span className="font-mono font-bold text-slate-900">
+                        {formatCurrency(
+                          accounts.find(a => String(a.id) === String(newTx.to_account_id))?.current_balance || 0,
+                          accounts.find(a => String(a.id) === String(newTx.to_account_id))?.currency || 'RON'
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Amount</Label>
+                <div className="relative">
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    required 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 transition-all font-mono pl-3 pr-12 font-semibold" 
+                    value={isNaN(newTx.amount) || newTx.amount === 0 ? '' : newTx.amount} 
+                    placeholder="0.00"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                      setNewTx({...newTx, amount: val});
+                    }} 
+                    onBlur={e => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        setNewTx({...newTx, amount: Math.round(val * 100) / 100});
+                      }
+                    }}
+                  />
+                  <div className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold pointer-events-none">
+                    {accounts.find(a => String(a.id) === String(newTx.account_id))?.currency || 'RON'}
+                  </div>
+                </div>
+              </div>
+
+              {newTx.type === 'TRANSFER' && (
+                <div className="space-y-2 p-3.5 rounded-xl border border-emerald-100/70 bg-emerald-50/10 relative overflow-hidden animate-in fade-in duration-300">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <Label className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                      <TrendingUp className="h-4 w-4" /> Interest Amount (Optional)
+                    </Label>
+                    <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100/50">Ledger Entry</span>
+                  </div>
+                  <div className="relative">
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      className="rounded-lg bg-white border-emerald-100 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 transition-all font-mono pl-3 pr-12 font-semibold" 
+                      value={isNaN(newTx.interestAmount) || newTx.interestAmount === 0 ? '' : newTx.interestAmount} 
+                      placeholder="0.00"
+                      onChange={e => {
+                        const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                        setNewTx({...newTx, interestAmount: val});
+                      }} 
+                      onBlur={e => {
+                        const val = parseFloat(e.target.value);
+                        if (!isNaN(val)) {
+                          setNewTx({...newTx, interestAmount: Math.round(val * 100) / 100});
+                        }
+                      }}
+                    />
+                    <div className="absolute right-3 top-2.5 text-xs text-emerald-600 font-bold pointer-events-none">
+                      {accounts.find(a => String(a.id) === String(newTx.account_id))?.currency || 'RON'}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Description</Label>
                 <Input 
-                  type="number" 
-                  step="0.01" 
-                  className="bg-white border-emerald-100 focus:ring-emerald-100 text-emerald-900 font-semibold" 
-                  value={isNaN(newTx.interestAmount) ? '' : (newTx.interestAmount === 0 ? '' : newTx.interestAmount)} 
-                  placeholder="0.00"
-                  onChange={e => {
-                    const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                    setNewTx({...newTx, interestAmount: val});
-                  }} 
-                  onBlur={e => {
-                    const val = parseFloat(e.target.value);
-                    if (!isNaN(val)) {
-                      setNewTx({...newTx, interestAmount: Math.round(val * 100) / 100});
-                    }
-                  }}
+                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 transition-all" 
+                  value={newTx.description} 
+                  onChange={e => setNewTx({...newTx, description: e.target.value})} 
+                  placeholder="Monthly savings, interest bonus, etc." 
                 />
               </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input className="rounded-lg bg-white border-gray-200" value={newTx.description} onChange={e => setNewTx({...newTx, description: e.target.value})} placeholder="Monthly savings, coffee, etc." />
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Transaction Date</Label>
+                <Input 
+                  type="date" 
+                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 transition-all" 
+                  value={newTx.date} 
+                  onChange={e => setNewTx({...newTx, date: e.target.value})} 
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input type="date" className="rounded-lg bg-white border-gray-200" value={newTx.date} onChange={e => setNewTx({...newTx, date: e.target.value})} />
-            </div>
-
-            <DialogFooter>
-              <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Confirm Action</Button>
+            <DialogFooter className="gap-3 sm:gap-3 flex-row sm:flex-row mt-6 pt-2">
+              <Button 
+                type="button"
+                variant="outline" 
+                className="flex-1 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-10 transition-colors font-medium" 
+                onClick={() => setIsTransactionOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm shadow-emerald-100 cursor-pointer text-xs h-10 transition-all font-semibold active:scale-[0.98]" 
+              >
+                Confirm Action
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Delete Account</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete account <strong>"{accountToDelete?.name}"</strong>?
-              This action is permanent and will delete all associated transactions and analytics data.
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[440px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 border border-red-100">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">Delete Account</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Critical Action Required</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>Cancel</Button>
+
+          {accountToDelete && (
+            <div className="my-2 rounded-xl border border-red-100/80 bg-red-50/20 p-4 font-sans relative overflow-hidden">
+              <div className="absolute right-0 top-0 -mr-6 -mt-6 w-24 h-24 bg-red-100/10 rounded-full blur-xl pointer-events-none" />
+              
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest block leading-none">Selected Portfolio</span>
+                  <h4 className="font-semibold text-slate-800 text-sm leading-tight mt-1">{accountToDelete.name}</h4>
+                  <p className="text-xs text-slate-500">{accountToDelete.bank_name} • {accountToDelete.owner}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block leading-none">Ending Balance</span>
+                  <span className="font-mono text-[13px] font-black text-slate-800 bg-slate-100/80 px-2 py-0.5 rounded border border-slate-200/50 mt-1.5 inline-block">
+                    {formatCurrency(accountToDelete.current_balance, accountToDelete.currency)}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="mt-4 pt-3 border-t border-red-100/50 flex gap-2 text-xs text-red-600 leading-relaxed font-medium">
+                <div className="h-1.5 w-1.5 rounded-full bg-red-500 mt-1.5 shrink-0 animate-pulse" />
+                <p>
+                  Removing this account will permanently erase <strong>"{accountToDelete.name}"</strong>, along with its full ledger transaction logs and analytics metrics. This cannot be undone.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-3 sm:gap-3 flex-row sm:flex-row mt-4">
             <Button 
-              className="bg-red-600 hover:bg-red-700 text-white" 
+              variant="outline" 
+              className="flex-1 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-10 transition-colors font-medium" 
+              onClick={() => setIsDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-sm shadow-red-100 cursor-pointer text-xs h-10 transition-all font-semibold active:scale-[0.98]" 
               onClick={() => {
                 if (accountToDelete) {
                   deleteAccount(accountToDelete.id);
@@ -2375,55 +2512,110 @@ export default function App() {
       </Dialog>
 
       <Dialog open={isEditAccountOpen} onOpenChange={setIsEditAccountOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Account</DialogTitle>
-            <DialogDescription>Update your bank account information.</DialogDescription>
+        <DialogContent className="sm:max-w-[460px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <Pencil className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">Edit Account</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Configure Portfolio Settings</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
+
           {editingAccount && (
-            <form onSubmit={handleEditAccount} className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label>Owner Name</Label>
-                <Input 
-                  required 
-                  value={editingAccount.owner} 
-                  onChange={e => setEditingAccount({...editingAccount, owner: e.target.value})}
-                  list="owners-list"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Bank Name</Label>
-                <Input required value={editingAccount.bank_name} onChange={e => setEditingAccount({...editingAccount, bank_name: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Account Nickname</Label>
-                <Input required value={editingAccount.name} onChange={e => setEditingAccount({...editingAccount, name: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Description (Optional)</Label>
-                <Input className="rounded-lg bg-white border-gray-200" value={editingAccount.description} onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Due Date (Optional)</Label>
-                <Input type="date" className="rounded-lg bg-white border-gray-200" value={editingAccount.due_date || ''} onChange={e => setEditingAccount({...editingAccount, due_date: e.target.value})} />
-              </div>
-              <div 
-                className="flex items-center gap-2 pt-2 cursor-pointer" 
-                onClick={() => {
-                  if (editingAccount.is_active && Math.abs(Number(editingAccount.current_balance)) > 0.001) {
-                    toast.error('Only accounts with 0 balance can be marked as inactive');
-                    return;
-                  }
-                  setEditingAccount({...editingAccount, is_active: editingAccount.is_active ? false : true});
-                }}
-              >
-                <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-1 ${editingAccount.is_active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                  <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform ${editingAccount.is_active ? 'translate-x-[20px]' : 'translate-x-0'}`}></div>
+            <form onSubmit={handleEditAccount} className="space-y-4 mt-2">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Owner Name</Label>
+                  <Input 
+                    required 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                    value={editingAccount.owner} 
+                    onChange={e => setEditingAccount({...editingAccount, owner: e.target.value})}
+                    list="owners-list"
+                  />
                 </div>
-                <Label className="cursor-pointer text-xs font-semibold text-gray-600">Active Account</Label>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Bank Name</Label>
+                    <Input 
+                      required 
+                      className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                      value={editingAccount.bank_name} 
+                      onChange={e => setEditingAccount({...editingAccount, bank_name: e.target.value})} 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Nickname</Label>
+                    <Input 
+                      required 
+                      className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                      value={editingAccount.name} 
+                      onChange={e => setEditingAccount({...editingAccount, name: e.target.value})} 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Description (Optional)</Label>
+                  <Input 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all"
+                    value={editingAccount.description || ''} 
+                    onChange={e => setEditingAccount({...editingAccount, description: e.target.value})} 
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Due Date (Optional)</Label>
+                  <Input 
+                    type="date" 
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all"
+                    value={editingAccount.due_date || ''} 
+                    onChange={e => setEditingAccount({...editingAccount, due_date: e.target.value})} 
+                  />
+                </div>
+
+                <div 
+                  className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors cursor-pointer mt-4"
+                  onClick={() => {
+                    if (editingAccount.is_active && Math.abs(Number(editingAccount.current_balance)) > 0.001) {
+                      toast.error('Only accounts with 0 balance can be marked as inactive');
+                      return;
+                    }
+                    setEditingAccount({...editingAccount, is_active: editingAccount.is_active ? false : true});
+                  }}
+                >
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-700 block">Active Status</span>
+                    <span className="text-[11px] text-slate-400 block font-normal leading-normal">
+                      Inactive accounts are hidden from transaction inputs and key aggregators.
+                    </span>
+                  </div>
+                  <div className={`w-10 h-5 rounded-full transition-colors flex items-center px-1 shrink-0 ${editingAccount.is_active ? 'bg-blue-600' : 'bg-slate-200'}`}>
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform ${editingAccount.is_active ? 'translate-x-[20px]' : 'translate-x-[2px]'}`}></div>
+                  </div>
+                </div>
               </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Save Changes</Button>
+
+              <DialogFooter className="gap-3 sm:gap-3 flex-row sm:flex-row mt-6 pt-2">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  className="flex-1 rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-10 transition-colors font-medium" 
+                  onClick={() => setIsEditAccountOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm shadow-blue-100 cursor-pointer text-xs h-10 transition-all font-semibold active:scale-[0.98]" 
+                >
+                  Save Changes
+                </Button>
               </DialogFooter>
             </form>
           )}
