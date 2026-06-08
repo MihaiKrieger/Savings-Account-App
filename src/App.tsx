@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.3';
+const APP_VERSION = '1.8.4';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1653,6 +1653,20 @@ export default function App() {
                           </>
                         )}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Bank:</span>
+                       <Select value={selectedBank} onValueChange={setSelectedBank}>
+                         <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue placeholder="All" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">All Banks</SelectItem>
+                           {banks.map(bank => (
+                             <SelectItem key={bank} value={bank} label={bank}>{bank}</SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
                     </div>
                     <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block" />
                     <div className="flex items-center gap-2">
