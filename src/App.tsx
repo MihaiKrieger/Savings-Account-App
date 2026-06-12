@@ -14,6 +14,7 @@ import {
   Pencil,
   Check,
   ChevronDown,
+  Search,
   CalendarDays,
   Filter,
   Banknote,
@@ -49,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.4';
+const APP_VERSION = '1.8.5';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -156,6 +157,36 @@ export default function App() {
     description: '',
     date: new Date().toISOString().split('T')[0]
   });
+
+  const [searchSourceQuery, setSearchSourceQuery] = useState('');
+  const [searchTargetQuery, setSearchTargetQuery] = useState('');
+  const [isSourceDropdownOpen, setIsSourceDropdownOpen] = useState(false);
+  const [isTargetDropdownOpen, setIsTargetDropdownOpen] = useState(false);
+
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const targetDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsSourceDropdownOpen(false);
+      }
+      if (targetDropdownRef.current && !targetDropdownRef.current.contains(event.target as Node)) {
+        setIsTargetDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!isTransactionOpen) {
+      setSearchSourceQuery('');
+      setSearchTargetQuery('');
+      setIsSourceDropdownOpen(false);
+      setIsTargetDropdownOpen(false);
+    }
+  }, [isTransactionOpen]);
 
   const fetchData = async () => {
     try {
@@ -586,6 +617,35 @@ export default function App() {
         return a.name.localeCompare(b.name);
       });
   }, [accounts]);
+
+  const filteredSourceAccounts = React.useMemo(() => {
+    if (!searchSourceQuery) return sortedAccountsForDropdown;
+    const query = searchSourceQuery.toLowerCase();
+    return sortedAccountsForDropdown.filter(acc => 
+      acc.owner.toLowerCase().includes(query) ||
+      acc.name.toLowerCase().includes(query) ||
+      acc.bank_name.toLowerCase().includes(query) ||
+      (acc.description && acc.description.toLowerCase().includes(query))
+    );
+  }, [sortedAccountsForDropdown, searchSourceQuery]);
+
+  const filteredTargetAccounts = React.useMemo(() => {
+    const baseline = sortedAccountsForDropdown
+      .filter(a => String(a.id) !== String(newTx.account_id))
+      .filter(a => {
+        const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
+        return !sourceAcc || a.currency === sourceAcc.currency;
+      });
+
+    if (!searchTargetQuery) return baseline;
+    const query = searchTargetQuery.toLowerCase();
+    return baseline.filter(acc => 
+      acc.owner.toLowerCase().includes(query) ||
+      acc.name.toLowerCase().includes(query) ||
+      acc.bank_name.toLowerCase().includes(query) ||
+      (acc.description && acc.description.toLowerCase().includes(query))
+    );
+  }, [sortedAccountsForDropdown, newTx.account_id, accounts, searchTargetQuery]);
 
   const ownerPulse = React.useMemo(() => {
     const breakdown: Record<string, { RON: number, EUR: number }> = {};
@@ -2300,19 +2360,96 @@ export default function App() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">{newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}</Label>
-                <Select value={String(newTx.account_id)} onValueChange={(v) => setNewTx({...newTx, account_id: v})}>
-                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 rounded-lg shadow-sm transition-all font-medium">
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortedAccountsForDropdown.map(acc => (
-                      <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
-                        {acc.owner}: {acc.name} • {acc.bank_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                  {newTx.type === 'TRANSFER' ? 'From Account' : 'Account'}
+                </Label>
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSourceDropdownOpen(!isSourceDropdownOpen)}
+                    className="w-full bg-white border border-slate-200 text-slate-800 text-sm h-10 px-3 flex items-center justify-between focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 rounded-lg shadow-sm transition-all font-medium text-left cursor-pointer"
+                  >
+                    <span className="truncate">
+                      {newTx.account_id ? (
+                        (() => {
+                          const acc = accounts.find(a => String(a.id) === String(newTx.account_id));
+                          return acc ? `${acc.owner}: ${acc.name} • ${acc.bank_name}` : 'Select account';
+                        })()
+                      ) : (
+                        <span className="text-slate-400">Select account</span>
+                      )}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </button>
+
+                  {isSourceDropdownOpen && (
+                    <div className="absolute z-50 w-full mt-1.5 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-150">
+                      <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                        <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <input
+                          type="text"
+                          value={searchSourceQuery}
+                          onChange={(e) => setSearchSourceQuery(e.target.value)}
+                          placeholder="Type to search..."
+                          className="w-full bg-transparent border-0 outline-none text-xs text-slate-800 placeholder-slate-400 p-0 focus:ring-0"
+                          autoFocus
+                        />
+                        {searchSourceQuery && (
+                          <button 
+                            type="button" 
+                            onClick={() => setSearchSourceQuery('')} 
+                            className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="overflow-y-auto max-h-48 divide-y divide-slate-50">
+                        {filteredSourceAccounts.length === 0 ? (
+                          <div className="p-4 text-center text-xs text-slate-400">
+                            No accounts found matching "{searchSourceQuery}"
+                          </div>
+                        ) : (
+                          filteredSourceAccounts.map(acc => {
+                            const isSelected = String(newTx.account_id) === String(acc.id);
+                            return (
+                              <button
+                                key={acc.id}
+                                type="button"
+                                onClick={() => {
+                                  setNewTx({ ...newTx, account_id: String(acc.id), to_account_id: '' });
+                                  setIsSourceDropdownOpen(false);
+                                  setSearchSourceQuery('');
+                                }}
+                                className={`w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  isSelected ? 'bg-emerald-50/50 hover:bg-emerald-100/30' : ''
+                                }`}
+                              >
+                                <div className="truncate pr-2">
+                                  <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider leading-none">
+                                      {acc.owner}
+                                    </span>
+                                    <span className="truncate">{acc.name}</span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                    {acc.bank_name} • <span className="font-mono">{acc.currency}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="font-mono font-bold text-slate-500">
+                                    {formatCurrency(acc.current_balance, acc.currency)}
+                                  </span>
+                                  {isSelected && <Check className="h-3.5 w-3.5 text-emerald-600" />}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {newTx.account_id && (
                   <div className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200 mt-1.5">
                     <span>Current Balance:</span>
@@ -2329,24 +2466,98 @@ export default function App() {
               {newTx.type === 'TRANSFER' && (
                 <div className="space-y-1.5 animate-in fade-in duration-200">
                   <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">To Account</Label>
-                  <Select value={String(newTx.to_account_id)} onValueChange={(v) => setNewTx({...newTx, to_account_id: v})}>
-                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-emerald-100 rounded-lg shadow-sm transition-all font-medium">
-                      <SelectValue placeholder="Select target account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortedAccountsForDropdown
-                        .filter(a => String(a.id) !== String(newTx.account_id))
-                        .filter(a => {
-                          const sourceAcc = accounts.find(sa => String(sa.id) === String(newTx.account_id));
-                          return !sourceAcc || a.currency === sourceAcc.currency;
-                        })
-                        .map(acc => (
-                        <SelectItem key={acc.id} value={String(acc.id)} label={`${acc.owner}: ${acc.name} • ${acc.bank_name}`}>
-                          {acc.owner}: {acc.name} • {acc.bank_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="relative" ref={targetDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsTargetDropdownOpen(!isTargetDropdownOpen)}
+                      className="w-full bg-white border border-slate-200 text-slate-800 text-sm h-10 px-3 flex items-center justify-between focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 rounded-lg shadow-sm transition-all font-medium text-left cursor-pointer"
+                      disabled={!newTx.account_id}
+                    >
+                      <span className="truncate">
+                        {newTx.to_account_id ? (
+                          (() => {
+                            const acc = accounts.find(a => String(a.id) === String(newTx.to_account_id));
+                            return acc ? `${acc.owner}: ${acc.name} • ${acc.bank_name}` : 'Select target account';
+                          })()
+                        ) : (
+                          <span className="text-slate-400">
+                            {newTx.account_id ? 'Select target account' : 'Select origin account first'}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                    </button>
+
+                    {isTargetDropdownOpen && newTx.account_id && (
+                      <div className="absolute z-50 w-full mt-1.5 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                          <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <input
+                            type="text"
+                            value={searchTargetQuery}
+                            onChange={(e) => setSearchTargetQuery(e.target.value)}
+                            placeholder="Type to search..."
+                            className="w-full bg-transparent border-0 outline-none text-xs text-slate-800 placeholder-slate-400 p-0 focus:ring-0"
+                            autoFocus
+                          />
+                          {searchTargetQuery && (
+                            <button 
+                              type="button" 
+                              onClick={() => setSearchTargetQuery('')} 
+                              className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="overflow-y-auto max-h-48 divide-y divide-slate-50">
+                          {filteredTargetAccounts.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-slate-400">
+                              {searchTargetQuery 
+                                ? `No matching destination accounts found for "${searchTargetQuery}"` 
+                                : 'No active matching currency destination accounts available.'}
+                            </div>
+                          ) : (
+                            filteredTargetAccounts.map(acc => {
+                              const isSelected = String(newTx.to_account_id) === String(acc.id);
+                              return (
+                                <button
+                                  key={acc.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewTx({ ...newTx, to_account_id: String(acc.id) });
+                                    setIsTargetDropdownOpen(false);
+                                    setSearchTargetQuery('');
+                                  }}
+                                  className={`w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                    isSelected ? 'bg-emerald-50/50 hover:bg-emerald-100/30' : ''
+                                  }`}
+                                >
+                                  <div className="truncate pr-2">
+                                    <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                      <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider leading-none">
+                                        {acc.owner}
+                                      </span>
+                                      <span className="truncate">{acc.name}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                      {acc.bank_name} • <span className="font-mono">{acc.currency}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="font-mono font-bold text-slate-500">
+                                      {formatCurrency(acc.current_balance, acc.currency)}
+                                    </span>
+                                    {isSelected && <Check className="h-3.5 w-3.5 text-emerald-600" />}
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {newTx.to_account_id && (
                     <div className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 flex justify-between items-center animate-in fade-in slide-in-from-top-1 duration-200 mt-1.5">
                       <span>Current Balance:</span>
