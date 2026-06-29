@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.5';
+const APP_VERSION = '1.8.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -107,6 +107,7 @@ export default function App() {
     });
   };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER'>('all');
   const [chartView, setChartView] = useState<'bar' | 'line'>('bar');
   const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance'>('balance');
   const [accountsSortOrder, setAccountsSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -2041,134 +2042,322 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="flex justify-between items-end">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Ledger Activity</h1>
-                    <p className="text-gray-500 text-sm mt-1">Audit trail of all money movements.</p>
+                    <p className="text-gray-500 text-sm mt-1">Audit trail of all money movements across connected bank vaults.</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <Select 
-                      value={txSortOrder} 
-                      onValueChange={(v: 'newest' | 'oldest') => setTxSortOrder(v)}
-                    >
-                      <SelectTrigger className="h-9 w-[130px] text-xs bg-white border-gray-200">
-                        <SelectValue placeholder="Sort" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest" label="Newest first">Newest first</SelectItem>
-                        <SelectItem value="oldest" label="Oldest first">Oldest first</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Type:</span>
+                      <Select value={txTypeFilter} onValueChange={(v: any) => setTxTypeFilter(v)}>
+                        <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          <SelectItem value="DEPOSIT">Deposits</SelectItem>
+                          <SelectItem value="WITHDRAWAL">Withdrawals</SelectItem>
+                          <SelectItem value="TRANSFER">Transfers</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Currency:</span>
+                       <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                         <SelectTrigger className="w-[85px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">All</SelectItem>
+                           <SelectItem value="RON">RON</SelectItem>
+                           <SelectItem value="EUR">EUR</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Owner:</span>
+                       <div className="relative">
+                        <button 
+                          onClick={() => setIsOwnerFilterOpen(!isOwnerFilterOpen)}
+                          className="flex items-center justify-between min-w-[110px] max-w-[150px] h-9 bg-white border border-gray-200 shadow-sm px-3 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors shrink-0"
+                        >
+                          <span className="truncate">
+                            {selectedOwners.length === 0 ? 'All Owners' : 
+                             selectedOwners.length === 1 ? selectedOwners[0] : 
+                             `${selectedOwners.length} Selected`}
+                          </span>
+                          <ChevronDown size={14} className={`text-gray-400 transition-transform ml-2 ${isOwnerFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {isOwnerFilterOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setIsOwnerFilterOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 mt-1 w-[160px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 overflow-hidden animate-in fade-in zoom-in duration-100">
+                              <button 
+                                className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                onClick={() => {
+                                  setSelectedOwners([]);
+                                  setIsOwnerFilterOpen(false);
+                                }}
+                              >
+                                <div className="w-4 h-4 flex items-center justify-center">
+                                  {selectedOwners.length === 0 && <Check size={12} className="text-blue-600" />}
+                                </div>
+                                <span className={selectedOwners.length === 0 ? 'font-bold text-blue-600' : ''}>All Owners</span>
+                              </button>
+                              
+                              <div className="h-px bg-gray-100 my-1" />
+                              
+                              {owners.map(owner => (
+                                <button 
+                                  key={owner}
+                                  className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
+                                  onClick={() => toggleOwner(owner)}
+                                >
+                                  <div className="w-4 h-4 flex items-center justify-center border border-gray-200 rounded-sm bg-gray-50">
+                                    {selectedOwners.includes(owner) && <Check size={12} className="text-blue-600" />}
+                                  </div>
+                                  <span className={selectedOwners.includes(owner) ? 'font-bold text-blue-600' : ''}>{owner}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Bank:</span>
+                       <Select value={selectedBank} onValueChange={setSelectedBank}>
+                         <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue placeholder="All" />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="all">All Banks</SelectItem>
+                           {banks.map(bank => (
+                             <SelectItem key={bank} value={bank} label={bank}>{bank}</SelectItem>
+                           ))}
+                         </SelectContent>
+                       </Select>
+                    </div>
+
+                    <div className="h-6 w-px bg-gray-200 mx-1 hidden md:block" />
+                    
+                    <div className="flex items-center gap-2">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Sort:</span>
+                       <Select value={txSortOrder} onValueChange={(v: 'newest' | 'oldest') => setTxSortOrder(v)}>
+                         <SelectTrigger className="w-[110px] h-9 bg-white border-gray-200 text-xs">
+                           <SelectValue />
+                         </SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="newest" label="Newest first">Newest first</SelectItem>
+                           <SelectItem value="oldest" label="Oldest first">Oldest first</SelectItem>
+                         </SelectContent>
+                       </Select>
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   {/* Desktop Table View */}
                   <div className="hidden md:block bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden mb-8">
-                    <Table>
-                      <TableHeader className="bg-gray-50/50">
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="px-6 py-4 uppercase text-[11px] font-bold tracking-wider text-gray-400">Type</TableHead>
-                          <TableHead className="px-6 py-4 uppercase text-[11px] font-bold tracking-wider text-gray-400">Account</TableHead>
-                          <TableHead className="px-6 py-4 uppercase text-[11px] font-bold tracking-wider text-gray-400">Label/Description</TableHead>
-                          <TableHead className="px-6 py-4 uppercase text-[11px] font-bold tracking-wider text-gray-400">Timestamp</TableHead>
-                          <TableHead className="px-6 py-4 uppercase text-[11px] font-bold tracking-wider text-gray-400 text-right">Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {transactions
-                          .filter(tx => 
-                            tx.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            accounts.find(a => a.id === tx.account_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-                          )
-                          .sort((a, b) => {
-                            const timeA = new Date(a.date).getTime();
-                            const timeB = new Date(b.date).getTime();
-                            if (txSortOrder === 'newest') return timeB - timeA;
-                            return timeA - timeB;
-                          })
-                          .map((tx) => {
-                          const account = accounts.find(a => a.id === tx.account_id);
-                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                          
-                          return (
-                            <TableRow key={tx.id} className="hover:bg-gray-50/30 transition-colors">
-                              <TableCell className="px-6">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-widest ${
-                                  tx.type === 'DEPOSIT' ? 'bg-green-50 text-green-700' : 
-                                  tx.type === 'WITHDRAWAL' ? 'bg-red-50 text-red-700' : 
-                                  'bg-blue-50 text-blue-700'
-                                }`}>
-                                  {tx.type}
-                                </span>
-                              </TableCell>
-                              <TableCell className="px-6 font-medium text-sm">
-                                <div className="flex flex-col gap-1">
-                                  {tx.type === 'DEPOSIT' && (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-5 h-5 rounded-full bg-green-50 flex items-center justify-center text-green-600 shrink-0">
-                                        <ArrowRight size={10} className="rotate-[135deg]" />
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">To Account</span>
-                                        <span className="text-gray-900">{account?.name}</span>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-gray-50/50 border-b border-gray-100">
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Movement & Vaults</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Label / Description</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Owner</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Timestamp</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Value</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {transactions
+                            .filter(tx => {
+                              const searchLower = searchQuery.toLowerCase();
+                              if (searchLower) {
+                                const account = accounts.find(a => a.id === tx.account_id);
+                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                                const descMatch = tx.description?.toLowerCase().includes(searchLower);
+                                const typeMatch = tx.type.toLowerCase().includes(searchLower);
+                                const accMatch = account?.name.toLowerCase().includes(searchLower) || account?.bank_name.toLowerCase().includes(searchLower);
+                                const targetAccMatch = targetAccount?.name.toLowerCase().includes(searchLower) || targetAccount?.bank_name.toLowerCase().includes(searchLower);
+                                if (!descMatch && !typeMatch && !accMatch && !targetAccMatch) return false;
+                              }
+
+                              if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                              if (selectedCurrency !== 'all' && tx.currency !== selectedCurrency) return false;
+
+                              if (selectedOwners.length > 0) {
+                                const account = accounts.find(a => a.id === tx.account_id);
+                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                                const accOwnerMatch = account ? selectedOwners.includes(account.owner) : false;
+                                const targetOwnerMatch = targetAccount ? selectedOwners.includes(targetAccount.owner) : false;
+                                if (!accOwnerMatch && !targetOwnerMatch) return false;
+                              }
+
+                              if (selectedBank !== 'all') {
+                                const account = accounts.find(a => a.id === tx.account_id);
+                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                                const accBankMatch = account ? account.bank_name === selectedBank : false;
+                                const targetBankMatch = targetAccount ? targetAccount.bank_name === selectedBank : false;
+                                if (!accBankMatch && !targetBankMatch) return false;
+                              }
+
+                              return true;
+                            })
+                            .sort((a, b) => {
+                              const timeA = new Date(a.date).getTime();
+                              const timeB = new Date(b.date).getTime();
+                              if (txSortOrder === 'newest') return timeB - timeA;
+                              return timeA - timeB;
+                            })
+                            .map((tx) => {
+                              const account = accounts.find(a => a.id === tx.account_id);
+                              const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                              
+                              return (
+                                <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
+                                  <td className="px-4 py-3">
+                                    <div className="flex items-center gap-3">
+                                      {/* Beautiful status/direction icons */}
+                                      {tx.type === 'DEPOSIT' && (
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0">
+                                          <TrendingUp size={16} />
+                                        </div>
+                                      )}
+                                      {tx.type === 'WITHDRAWAL' && (
+                                        <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-500 border border-rose-100 flex items-center justify-center shrink-0">
+                                          <CreditCard size={16} />
+                                        </div>
+                                      )}
+                                      {tx.type === 'TRANSFER' && (
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
+                                          <ArrowRightLeft size={16} />
+                                        </div>
+                                      )}
+
+                                      <div className="min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className={`text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                            tx.type === 'DEPOSIT' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 
+                                            tx.type === 'WITHDRAWAL' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 
+                                            'bg-blue-50 text-blue-700 border border-blue-100'
+                                          }`}>
+                                            {tx.type}
+                                          </span>
+                                        </div>
+
+                                        <div className="text-sm font-bold text-slate-800 leading-tight">
+                                          {tx.type === 'DEPOSIT' && (
+                                            <span>To <span className="text-slate-900">{account?.name || 'Unknown Vault'}</span></span>
+                                          )}
+                                          {tx.type === 'WITHDRAWAL' && (
+                                            <span>From <span className="text-slate-900">{account?.name || 'Unknown Vault'}</span></span>
+                                          )}
+                                          {tx.type === 'TRANSFER' && (
+                                            <span className="inline-flex items-center gap-1.5 flex-wrap">
+                                              <span>{account?.name}</span>
+                                              <ArrowRight size={12} className="text-blue-500 shrink-0 inline-block" />
+                                              <span>{targetAccount?.name || 'Target Vault'}</span>
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        <div className="text-[10px] text-gray-400 font-medium uppercase tracking-tight mt-0.5">
+                                          {tx.type === 'TRANSFER' ? (
+                                            <span>{account?.bank_name} ➔ {targetAccount?.bank_name}</span>
+                                          ) : (
+                                            <span>{account?.bank_name}</span>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  )}
-                                  {tx.type === 'WITHDRAWAL' && (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center text-red-600 shrink-0">
-                                        <ArrowRight size={10} className="rotate-[-45deg]" />
+                                  </td>
+                                  
+                                  <td className="px-4 py-3 text-slate-600 text-xs font-normal max-w-[240px] truncate" title={tx.description || 'System entry'}>
+                                    {tx.description || <span className="text-gray-300 italic">No note attached</span>}
+                                  </td>
+
+                                  <td className="px-4 py-3 text-center">
+                                    {tx.type === 'TRANSFER' && account && targetAccount && account.owner !== targetAccount.owner ? (
+                                      <div className="flex items-center justify-center gap-1">
+                                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{account.owner}</span>
+                                        <ArrowRight size={10} className="text-gray-400" />
+                                        <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">{targetAccount.owner}</span>
                                       </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">From Account</span>
-                                        <span className="text-gray-900">{account?.name}</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {tx.type === 'TRANSFER' && (
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex flex-col min-w-[80px]">
-                                        <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">From</span>
-                                        <span className="text-gray-900 truncate max-w-[100px]">{account?.name}</span>
-                                      </div>
-                                      <ArrowRight size={12} className="text-blue-400 shrink-0 mx-1 mt-3" />
-                                      <div className="flex flex-col min-w-[80px]">
-                                        <span className="text-[9px] uppercase font-bold text-gray-400 tracking-tight leading-none mb-0.5">To</span>
-                                        <span className="text-gray-900 truncate max-w-[100px]">{targetAccount?.name}</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="px-6 text-gray-600 text-sm font-normal truncate max-w-[200px]">{tx.description || 'Manual entry'}</TableCell>
-                              <TableCell className="px-6 text-gray-400 text-[10px]">
-                                {formatDate(tx.date)}
-                              </TableCell>
-                              <TableCell className={`px-6 text-right font-bold text-sm ${
-                                tx.type === 'DEPOSIT' ? 'text-green-600' : 
-                                tx.type === 'WITHDRAWAL' ? 'text-red-500' : 
-                                'text-blue-600'
-                              }`}>
-                                {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '-' : '+'}
-                                {formatCurrency(tx.amount, tx.currency)}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                                    ) : (
+                                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                                        {account?.owner || targetAccount?.owner || '—'}
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border border-gray-100 bg-gray-50 text-gray-500 inline-flex items-center gap-1">
+                                      <CalendarDays size={10} /> {formatDate(tx.date, 'long')}
+                                    </span>
+                                  </td>
+
+                                  <td className={`px-4 py-3 text-right font-mono text-sm font-bold tracking-tight ${
+                                    tx.type === 'DEPOSIT' ? 'text-emerald-600' : 
+                                    tx.type === 'WITHDRAWAL' ? 'text-rose-500' : 
+                                    'text-blue-600'
+                                  }`}>
+                                    {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '−' : '+'}
+                                    {formatCurrency(tx.amount, tx.currency)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-3 pb-8">
                     {transactions
-                      .filter(tx => 
-                        tx.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        tx.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        accounts.find(a => a.id === tx.account_id)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-                      )
+                      .filter(tx => {
+                        const searchLower = searchQuery.toLowerCase();
+                        if (searchLower) {
+                          const account = accounts.find(a => a.id === tx.account_id);
+                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                          const descMatch = tx.description?.toLowerCase().includes(searchLower);
+                          const typeMatch = tx.type.toLowerCase().includes(searchLower);
+                          const accMatch = account?.name.toLowerCase().includes(searchLower) || account?.bank_name.toLowerCase().includes(searchLower);
+                          const targetAccMatch = targetAccount?.name.toLowerCase().includes(searchLower) || targetAccount?.bank_name.toLowerCase().includes(searchLower);
+                          if (!descMatch && !typeMatch && !accMatch && !targetAccMatch) return false;
+                        }
+
+                        if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+                        if (selectedCurrency !== 'all' && tx.currency !== selectedCurrency) return false;
+
+                        if (selectedOwners.length > 0) {
+                          const account = accounts.find(a => a.id === tx.account_id);
+                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                          const accOwnerMatch = account ? selectedOwners.includes(account.owner) : false;
+                          const targetOwnerMatch = targetAccount ? selectedOwners.includes(targetAccount.owner) : false;
+                          if (!accOwnerMatch && !targetOwnerMatch) return false;
+                        }
+
+                        if (selectedBank !== 'all') {
+                          const account = accounts.find(a => a.id === tx.account_id);
+                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
+                          const accBankMatch = account ? account.bank_name === selectedBank : false;
+                          const targetBankMatch = targetAccount ? targetAccount.bank_name === selectedBank : false;
+                          if (!accBankMatch && !targetBankMatch) return false;
+                        }
+
+                        return true;
+                      })
                       .sort((a, b) => {
                         const timeA = new Date(a.date).getTime();
                         const timeB = new Date(b.date).getTime();
@@ -2183,37 +2372,57 @@ export default function App() {
                           <Card key={tx.id} className="shadow-sm border-gray-100">
                             <CardContent className="p-4">
                               <div className="flex justify-between items-start mb-2">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-bold tracking-widest uppercase ${
-                                  tx.type === 'DEPOSIT' ? 'bg-green-50 text-green-700' : 
-                                  tx.type === 'WITHDRAWAL' ? 'bg-red-50 text-red-700' : 
-                                  'bg-blue-50 text-blue-700'
+                                <span className={`text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                  tx.type === 'DEPOSIT' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 
+                                  tx.type === 'WITHDRAWAL' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 
+                                  'bg-blue-50 text-blue-700 border border-blue-100'
                                 }`}>
                                   {tx.type}
                                 </span>
-                                <span className="text-[10px] text-gray-400">{formatDate(tx.date)}</span>
+                                <span className="text-[10px] text-gray-400 font-semibold bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100/50 flex items-center gap-1">
+                                  <CalendarDays size={10} /> {formatDate(tx.date)}
+                                </span>
                               </div>
                               
-                              <div className="mb-3">
-                                {tx.type === 'TRANSFER' ? (
-                                  <div className="flex items-center gap-2">
-                                     <span className="text-[11px] font-medium text-gray-900">{account?.name}</span>
-                                     <ArrowRight size={12} className="text-blue-400" />
-                                     <span className="text-[11px] font-medium text-gray-900">{targetAccount?.name}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[11px] font-medium text-gray-900">{account?.name}</span>
-                                )}
-                                <p className="text-xs text-gray-500 mt-1">{tx.description || 'System Entry'}</p>
+                              <div className="mb-3 space-y-1">
+                                <div className="text-sm font-bold text-slate-800">
+                                  {tx.type === 'DEPOSIT' && (
+                                    <span>To {account?.name}</span>
+                                  )}
+                                  {tx.type === 'WITHDRAWAL' && (
+                                    <span>From {account?.name}</span>
+                                  )}
+                                  {tx.type === 'TRANSFER' && (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span>{account?.name}</span>
+                                      <ArrowRight size={11} className="text-blue-500 shrink-0" />
+                                      <span>{targetAccount?.name}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
+                                  {tx.type === 'TRANSFER' ? (
+                                    <span>{account?.bank_name} ➔ {targetAccount?.bank_name}</span>
+                                  ) : (
+                                    <span>{account?.bank_name}</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-500 italic mt-1.5">{tx.description || 'System entry'}</p>
                               </div>
 
-                              <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Amount</span>
-                                <span className={`text-sm font-bold ${
-                                  tx.type === 'DEPOSIT' ? 'text-green-600' : 
-                                  tx.type === 'WITHDRAWAL' ? 'text-red-500' : 
+                              <div className="flex justify-between items-center pt-2.5 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Owner:</span>
+                                  <span className="text-[10px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded-full border border-gray-100">
+                                    {account?.owner || targetAccount?.owner || '—'}
+                                  </span>
+                                </div>
+                                <span className={`text-sm font-mono font-bold tracking-tight ${
+                                  tx.type === 'DEPOSIT' ? 'text-emerald-600' : 
+                                  tx.type === 'WITHDRAWAL' ? 'text-rose-500' : 
                                   'text-blue-600'
                                 }`}>
-                                  {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '-' : '+'}
+                                  {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '−' : '+'}
                                   {formatCurrency(tx.amount, tx.currency)}
                                 </span>
                               </div>
