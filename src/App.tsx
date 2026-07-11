@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -485,7 +485,7 @@ export default function App() {
       });
     });
 
-    if (selectedYears.length === 0 && result.length > 0) {
+    if (result.length > 0) {
       const monthlyResult: any[] = [];
       const firstDateText = result[0].day;
       const lastDateText = result[result.length - 1].day;
@@ -517,13 +517,15 @@ export default function App() {
         // Representative date of the month: YYYY-MM-01
         const repDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
         
-        // Only include the month if there are recorded transaction/balance changes within it
+        // Only include the month if there are recorded transaction/balance changes within it or if a specific year is selected
         const hasChangesInMonth = periodAnalytics.some(ana => {
           const anaDate = new Date(ana.day);
           return anaDate.getFullYear() === currentYear && anaDate.getMonth() === currentMonth;
         });
         
-        if (hasChangesInMonth) {
+        const shouldInclude = hasChangesInMonth || (selectedYears.length > 0);
+        
+        if (shouldInclude) {
           monthlyResult.push({
             day: repDate,
             RON: lastKnownRon,
@@ -867,13 +869,13 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-6"
               >
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                   <div>
                     <h1 className="text-2xl font-bold tracking-tight">Financial Overview</h1>
                     <p className="text-gray-500 text-sm mt-1">Real-time status of your global savings accounts.</p>
                   </div>
-                  <div className="flex flex-col gap-3">
-                        <div className="flex items-center gap-4 justify-end">
+                  <div className="flex flex-col gap-3 w-full md:w-auto">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-start md:justify-end">
                            <div className="flex items-center gap-2 relative">
                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Years:</span>
                               <div className="relative">
@@ -1080,7 +1082,7 @@ export default function App() {
                             </button>
                           </div>
                         </div>
-                        <div className="h-[450px] sm:h-[550px] w-full min-w-0">
+                        <div className="h-[280px] sm:h-[400px] lg:h-[500px] w-full min-w-0">
                           {isChartReady ? (
                             <ResponsiveContainer width="100%" height="100%" debounce={250}>
                               <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -1104,16 +1106,9 @@ export default function App() {
                                   dy={10}
                                   tickFormatter={(str) => {
                                     const date = new Date(str);
-                                    if (selectedYears.length === 0) {
-                                      return date.toLocaleDateString('en-GB', { 
-                                        month: 'short',
-                                        year: '2-digit'
-                                      });
-                                    }
                                     return date.toLocaleDateString('en-GB', { 
-                                      day: '2-digit',
-                                      month: '2-digit',
-                                      year: 'numeric'
+                                      month: 'short',
+                                      year: '2-digit'
                                     });
                                   }}
                                 />
@@ -1150,13 +1145,10 @@ export default function App() {
                                   labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
                                   labelFormatter={(label) => {
                                     const d = new Date(label);
-                                    if (selectedYears.length === 0) {
-                                      return d.toLocaleDateString('en-GB', {
-                                        month: 'long',
-                                        year: 'numeric'
-                                      });
-                                    }
-                                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                                    return d.toLocaleDateString('en-GB', {
+                                      month: 'long',
+                                      year: 'numeric'
+                                    });
                                   }}
                                 />
                                 <Legend 
