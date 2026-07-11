@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BarChart3, 
-  LineChart as LineChartIcon,
   CreditCard, 
   History, 
   LayoutDashboard, 
@@ -37,8 +36,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 import { Account, Transaction, Currency, AnalyticsData } from './types';
 import { 
-  BarChart, 
-  Bar, 
   LineChart,
   Line,
   XAxis, 
@@ -50,7 +47,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.6';
+const APP_VERSION = '1.8.8';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -108,7 +105,6 @@ export default function App() {
   };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER'>('all');
-  const [chartView, setChartView] = useState<'bar' | 'line'>('bar');
   const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance'>('balance');
   const [accountsSortOrder, setAccountsSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -1061,240 +1057,127 @@ export default function App() {
                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getYearsLabel()} • EUR scaled to RON baseline for visual proportion</p>
                             </div>
                           </div>
-                          <div className="flex bg-gray-50 p-1 rounded-lg gap-1 border border-gray-100">
-                            <div className="flex bg-white/50 p-0.5 rounded-md mr-1">
-                              <button 
-                                onClick={() => setChartCurrencyFilter('all')}
-                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                              >
-                                ALL
-                              </button>
-                              <button 
-                                onClick={() => setChartCurrencyFilter('RON')}
-                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'RON' ? 'bg-[#F97316] text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                              >
-                                RON
-                              </button>
-                              <button 
-                                onClick={() => setChartCurrencyFilter('EUR')}
-                                className={`px-2 py-1 text-[10px] font-bold rounded-sm transition-all ${chartCurrencyFilter === 'EUR' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                              >
-                                EUR
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-0.5">
-                              <button 
-                                onClick={() => setChartView('bar')}
-                                className={`p-1.5 rounded-md transition-all ${chartView === 'bar' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                title="Bar Chart"
-                              >
-                                <BarChart3 size={14} />
-                              </button>
-                              <button 
-                                onClick={() => setChartView('line')}
-                                className={`p-1.5 rounded-md transition-all ${chartView === 'line' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                                title="Line Chart"
-                              >
-                                <LineChartIcon size={14} />
-                              </button>
-                            </div>
+                          <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-100">
+                            <button 
+                              onClick={() => setChartCurrencyFilter('all')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${chartCurrencyFilter === 'all' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                              ALL
+                            </button>
+                            <button 
+                              onClick={() => setChartCurrencyFilter('RON')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${chartCurrencyFilter === 'RON' ? 'bg-[#F97316] text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                              RON
+                            </button>
+                            <button 
+                              onClick={() => setChartCurrencyFilter('EUR')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${chartCurrencyFilter === 'EUR' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                              EUR
+                            </button>
                           </div>
                         </div>
                         <div className="h-[450px] sm:h-[550px] w-full min-w-0">
                           {isChartReady ? (
                             <ResponsiveContainer width="100%" height="100%" debounce={250}>
-                          {chartView === 'bar' ? (
-                            <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                              <XAxis 
-                                dataKey="day" 
-                                stroke="#94A3B8" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false} 
-                                dy={10}
-                                tickFormatter={(str) => {
-                                  const date = new Date(str);
-                                  if (selectedYears.length === 0) {
+                              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                                <XAxis 
+                                  dataKey="day" 
+                                  stroke="#94A3B8" 
+                                  fontSize={10} 
+                                  tickLine={false} 
+                                  axisLine={false} 
+                                  dy={10}
+                                  tickFormatter={(str) => {
+                                    const date = new Date(str);
+                                    if (selectedYears.length === 0) {
+                                      return date.toLocaleDateString('en-GB', { 
+                                        month: 'short',
+                                        year: '2-digit'
+                                      });
+                                    }
                                     return date.toLocaleDateString('en-GB', { 
-                                      month: 'short',
-                                      year: '2-digit'
-                                    });
-                                  }
-                                  return date.toLocaleDateString('en-GB', { 
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric'
-                                  });
-                                }}
-                              />
-                              <YAxis 
-                                stroke="#94A3B8" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                dx={-10}
-                                tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
-                              />
-                              <Tooltip 
-                                formatter={(value: any, name: string, props: any) => {
-                                  if (name === 'EUR') {
-                                    const rawEur = props.payload?.EUR;
-                                    return [
-                                      `${formatCurrency(rawEur ?? 0, 'EUR')} (~${formatCurrency(value ?? 0, 'RON')} equivalent)`,
-                                      'EUR'
-                                    ];
-                                  }
-                                  if (name === 'RON') {
-                                    return [formatCurrency(value, 'RON'), 'RON'];
-                                  }
-                                  return [value, name];
-                                }}
-                                contentStyle={{ 
-                                  borderRadius: '12px', 
-                                  border: 'none', 
-                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                                  fontSize: '12px',
-                                  padding: '12px'
-                                }} 
-                                itemStyle={{ padding: '2px 0' }}
-                                labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
-                                labelFormatter={(label) => {
-                                  const d = new Date(label);
-                                  if (selectedYears.length === 0) {
-                                    return d.toLocaleDateString('en-GB', {
-                                      month: 'long',
+                                      day: '2-digit',
+                                      month: '2-digit',
                                       year: 'numeric'
                                     });
-                                  }
-                                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                                }}
-                              />
-                              <Legend 
-                                verticalAlign="top" 
-                                align="right" 
-                                height={36} 
-                                iconType="circle" 
-                                iconSize={8}
-                                wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
-                              />
-                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
-                                <Bar 
-                                  dataKey="RON" 
-                                  fill="#F97316" 
-                                  radius={[4, 4, 0, 0]}
-                                  maxBarSize={40}
+                                  }}
                                 />
-                              )}
-                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
-                                <Bar 
-                                  dataKey="EUR_scaled" 
-                                  name="EUR"
-                                  fill="#2563EB" 
-                                  radius={[4, 4, 0, 0]}
-                                  maxBarSize={40}
+                                <YAxis 
+                                  stroke="#94A3B8" 
+                                  fontSize={10} 
+                                  tickLine={false} 
+                                  axisLine={false}
+                                  dx={-10}
+                                  tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
                                 />
-                              )}
-                            </BarChart>
-                          ) : (
-                            <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                              <XAxis 
-                                dataKey="day" 
-                                stroke="#94A3B8" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false} 
-                                dy={10}
-                                tickFormatter={(str) => {
-                                  const date = new Date(str);
-                                  if (selectedYears.length === 0) {
-                                    return date.toLocaleDateString('en-GB', { 
-                                      month: 'short',
-                                      year: '2-digit'
-                                    });
-                                  }
-                                  return date.toLocaleDateString('en-GB', { 
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric'
-                                  });
-                                }}
-                              />
-                              <YAxis 
-                                stroke="#94A3B8" 
-                                fontSize={10} 
-                                tickLine={false} 
-                                axisLine={false}
-                                dx={-10}
-                                tickFormatter={(val: number) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val.toString()}
-                              />
-                              <Tooltip 
-                                formatter={(value: any, name: string, props: any) => {
-                                  if (name === 'EUR') {
-                                    const rawEur = props.payload?.EUR;
-                                    return [
-                                      `${formatCurrency(rawEur ?? 0, 'EUR')} (~${formatCurrency(value ?? 0, 'RON')} equivalent)`,
-                                      'EUR'
-                                    ];
-                                  }
-                                  if (name === 'RON') {
-                                    return [formatCurrency(value, 'RON'), 'RON'];
-                                  }
-                                  return [value, name];
-                                }}
-                                contentStyle={{ 
-                                  borderRadius: '12px', 
-                                  border: 'none', 
-                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                                  fontSize: '12px',
-                                  padding: '12px'
-                                }} 
-                                itemStyle={{ padding: '2px 0' }}
-                                labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
-                                labelFormatter={(label) => {
-                                  const d = new Date(label);
-                                  if (selectedYears.length === 0) {
-                                    return d.toLocaleDateString('en-GB', {
-                                      month: 'long',
-                                      year: 'numeric'
-                                    });
-                                  }
-                                  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                                }}
-                              />
-                              <Legend 
-                                verticalAlign="top" 
-                                align="right" 
-                                height={36} 
-                                iconType="circle" 
-                                iconSize={8}
-                                wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
-                              />
-                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
-                                <Line 
-                                  type="monotone" 
-                                  dataKey="RON" 
-                                  stroke="#F97316" 
-                                  strokeWidth={2.5} 
-                                  dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
-                                  activeDot={{ r: 6 }} 
+                                <Tooltip 
+                                  formatter={(value: any, name: string, props: any) => {
+                                    if (name === 'EUR') {
+                                      const rawEur = props.payload?.EUR;
+                                      return [
+                                        `${formatCurrency(rawEur ?? 0, 'EUR')} (~${formatCurrency(value ?? 0, 'RON')} equivalent)`,
+                                        'EUR'
+                                      ];
+                                    }
+                                    if (name === 'RON') {
+                                      return [formatCurrency(value, 'RON'), 'RON'];
+                                    }
+                                    return [value, name];
+                                  }}
+                                  contentStyle={{ 
+                                    borderRadius: '12px', 
+                                    border: 'none', 
+                                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                    fontSize: '12px',
+                                    padding: '12px'
+                                  }} 
+                                  itemStyle={{ padding: '2px 0' }}
+                                  labelStyle={{ fontWeight: 'bold', marginBottom: '4px', color: '#1E293B' }}
+                                  labelFormatter={(label) => {
+                                    const d = new Date(label);
+                                    if (selectedYears.length === 0) {
+                                      return d.toLocaleDateString('en-GB', {
+                                        month: 'long',
+                                        year: 'numeric'
+                                      });
+                                    }
+                                    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                                  }}
                                 />
-                              )}
-                              {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
-                                <Line 
-                                  type="monotone" 
-                                  dataKey="EUR_scaled" 
-                                  name="EUR"
-                                  stroke="#2563EB" 
-                                  strokeWidth={2.5} 
-                                  dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
-                                  activeDot={{ r: 6 }} 
+                                <Legend 
+                                  verticalAlign="top" 
+                                  align="right" 
+                                  height={36} 
+                                  iconType="circle" 
+                                  iconSize={8}
+                                  wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
                                 />
-                              )}
-                            </LineChart>
-                          )}
-                        </ResponsiveContainer>
+                                {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="RON" 
+                                    stroke="#F97316" 
+                                    strokeWidth={2.5} 
+                                    dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
+                                    activeDot={{ r: 6 }} 
+                                  />
+                                )}
+                                {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="EUR_scaled" 
+                                    name="EUR"
+                                    stroke="#2563EB" 
+                                    strokeWidth={2.5} 
+                                    dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
+                                    activeDot={{ r: 6 }} 
+                                  />
+                                )}
+                              </LineChart>
+                            </ResponsiveContainer>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-lg animate-pulse gap-2 border border-slate-100/50">
                             <p className="text-[11px] font-medium text-slate-400">Loading chart view...</p>
@@ -1458,7 +1341,12 @@ export default function App() {
                             <div key={acc.id} className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all cursor-pointer group/item" onClick={() => setActiveTab('accounts')}>
                               <div className="flex justify-between items-start mb-2">
                                 <div>
-                                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter mb-0.5">{acc.bank_name}</p>
+                                  <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">{acc.bank_name}</p>
+                                    <span className="text-[9px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-gray-100 leading-none shrink-0">
+                                      {acc.owner}
+                                    </span>
+                                  </div>
                                   <p className="text-xs font-bold text-gray-900 group-hover/item:text-blue-700 transition-colors uppercase tracking-tight">{acc.name}</p>
                                 </div>
                                 <div className={`px-2 py-1 rounded-lg text-[10px] font-black italic shadow-sm ${
