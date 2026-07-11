@@ -36,6 +36,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 
 import { Account, Transaction, Currency, AnalyticsData } from './types';
 import { 
+  AreaChart,
+  Area,
   LineChart,
   Line,
   XAxis, 
@@ -47,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.8.8';
+const APP_VERSION = '1.9.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1081,7 +1083,17 @@ export default function App() {
                         <div className="h-[450px] sm:h-[550px] w-full min-w-0">
                           {isChartReady ? (
                             <ResponsiveContainer width="100%" height="100%" debounce={250}>
-                              <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                <defs>
+                                  <linearGradient id="colorRon" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#F97316" stopOpacity={0.15}/>
+                                    <stop offset="95%" stopColor="#F97316" stopOpacity={0.0}/>
+                                  </linearGradient>
+                                  <linearGradient id="colorEur" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15}/>
+                                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0}/>
+                                  </linearGradient>
+                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                                 <XAxis 
                                   dataKey="day" 
@@ -1156,27 +1168,31 @@ export default function App() {
                                   wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
                                 />
                                 {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
-                                  <Line 
+                                  <Area 
                                     type="monotone" 
                                     dataKey="RON" 
                                     stroke="#F97316" 
                                     strokeWidth={2.5} 
+                                    fillOpacity={1}
+                                    fill="url(#colorRon)"
                                     dot={{ r: 4, fill: '#F97316', strokeWidth: 2, stroke: '#fff' }} 
                                     activeDot={{ r: 6 }} 
                                   />
                                 )}
                                 {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'EUR') && (
-                                  <Line 
+                                  <Area 
                                     type="monotone" 
                                     dataKey="EUR_scaled" 
                                     name="EUR"
                                     stroke="#2563EB" 
                                     strokeWidth={2.5} 
+                                    fillOpacity={1}
+                                    fill="url(#colorEur)"
                                     dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#fff' }} 
                                     activeDot={{ r: 6 }} 
                                   />
                                 )}
-                              </LineChart>
+                              </AreaChart>
                             </ResponsiveContainer>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-lg animate-pulse gap-2 border border-slate-100/50">
