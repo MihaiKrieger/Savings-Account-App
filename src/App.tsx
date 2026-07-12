@@ -49,7 +49,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.9.2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -2678,7 +2678,27 @@ export default function App() {
               )}
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Amount</Label>
+                <div className="flex justify-between items-center">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Amount</Label>
+                  {newTx.type === 'TRANSFER' && newTx.account_id && (() => {
+                    const srcAcc = accounts.find(a => String(a.id) === String(newTx.account_id));
+                    if (srcAcc && srcAcc.current_balance > 0) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewTx(prev => ({ ...prev, amount: srcAcc.current_balance }));
+                            toast.success(`Populated transfer amount with entire balance: ${formatCurrency(srcAcc.current_balance, srcAcc.currency)}`);
+                          }}
+                          className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100/60 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          Transfer everything ({formatCurrency(srcAcc.current_balance, srcAcc.currency)})
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
                 <div className="relative">
                   <Input 
                     type="number" 
