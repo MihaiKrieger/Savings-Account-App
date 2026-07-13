@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.3';
+const APP_VERSION = '1.9.5';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -61,19 +61,32 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedBank, setSelectedBank] = useState('all');
-  const [selectedYears, setSelectedYears] = useState<string[]>([]);
-  const [isYearFilterOpen, setIsYearFilterOpen] = useState(false);
-  const [isChartReady, setIsChartReady] = useState(false);
+  const [startMonth, setStartMonth] = useState<string>('all');
+  const [endMonth, setEndMonth] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [filterByMonths, setFilterByMonths] = useState<boolean>(false);
 
-  const toggleYear = (year: string) => {
-    setSelectedYears(prev => {
-      if (prev.includes(year)) {
-        return prev.filter(y => y !== year);
-      } else {
-        return [...prev, year];
+  const { effectiveStartMonth, effectiveEndMonth } = React.useMemo(() => {
+    if (selectedYear === 'all') {
+      if (filterByMonths) {
+        return { effectiveStartMonth: startMonth, effectiveEndMonth: endMonth };
       }
-    });
-  };
+      return { effectiveStartMonth: 'all', effectiveEndMonth: 'all' };
+    }
+    
+    // Specific year selected
+    if (filterByMonths) {
+      const start = startMonth !== 'all' && startMonth.startsWith(selectedYear) ? startMonth : `${selectedYear}-01`;
+      const end = endMonth !== 'all' && endMonth.startsWith(selectedYear) ? endMonth : `${selectedYear}-12`;
+      return { effectiveStartMonth: start, effectiveEndMonth: end };
+    }
+    
+    // Whole year
+    return { effectiveStartMonth: `${selectedYear}-01`, effectiveEndMonth: `${selectedYear}-12` };
+  }, [selectedYear, filterByMonths, startMonth, endMonth]);
+
+  const [isRangeFilterOpen, setIsRangeFilterOpen] = useState(false);
+  const [isChartReady, setIsChartReady] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
   const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'RON' | 'EUR'>('all');
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -105,6 +118,17 @@ export default function App() {
         return [...prev, owner];
       }
     });
+  };
+
+  const handleYearSelect = (year: string) => {
+    setSelectedYear(year);
+    if (year === 'all') {
+      setStartMonth('all');
+      setEndMonth('all');
+    } else {
+      setStartMonth(`${year}-01`);
+      setEndMonth(`${year}-12`);
+    }
   };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER'>('all');
@@ -369,16 +393,81 @@ export default function App() {
     return new Intl.NumberFormat('ro-RO', { style: 'currency', currency }).format(normalized);
   };
 
-  const getYearsLabel = () => {
-    if (selectedYears.length === 0) return 'all time';
-    const sorted = [...selectedYears].map(Number).sort((a,b) => a - b);
-    if (sorted.length === 1) return sorted[0].toString();
-    const isConsecutive = sorted.every((val, index) => index === 0 || val === sorted[index - 1] + 1);
-    if (isConsecutive) {
-      return `${sorted[0]} - ${sorted[sorted.length - 1]}`;
+  const getRangeLabel = () => {
+    if (selectedYear === 'all') {
+      if (!filterByMonths) return 'All Time';
+      
+      const hasStart = startMonth && startMonth !== 'all';
+      const hasEnd = endMonth && endMonth !== 'all';
+      if (!hasStart && !hasEnd) return 'All Time';
+
+      const formatYM = (ym: string) => {
+        const [year, month] = ym.split('-');
+        const d = new Date(Number(year), Number(month) - 1, 1);
+        return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      };
+
+      if (hasStart && hasEnd) {
+        if (startMonth === endMonth) return formatYM(startMonth);
+        return `${formatYM(startMonth)} - ${formatYM(endMonth)}`;
+      }
+      if (hasStart) return `From ${formatYM(startMonth)}`;
+      return `Up to ${formatYM(endMonth)}`;
     }
-    return sorted.join(', ');
+
+    // Specific year selected
+    if (!filterByMonths) {
+      return `Year ${selectedYear}`;
+    }
+
+    // Month-level filter within that year
+    const start = startMonth !== 'all' && startMonth.startsWith(selectedYear) ? startMonth : `${selectedYear}-01`;
+    const end = endMonth !== 'all' && endMonth.startsWith(selectedYear) ? endMonth : `${selectedYear}-12`;
+    
+    const formatMonthOnly = (ym: string) => {
+      const [, m] = ym.split('-');
+      const d = new Date(2000, Number(m) - 1, 1);
+      return d.toLocaleDateString('en-GB', { month: 'short' });
+    };
+
+    if (start === end) return `${formatMonthOnly(start)} ${selectedYear}`;
+    if (start === `${selectedYear}-01` && end === `${selectedYear}-12`) return `Year ${selectedYear}`;
+    return `${formatMonthOnly(start)} - ${formatMonthOnly(end)} ${selectedYear}`;
   };
+
+  const availableMonths = React.useMemo(() => {
+    if (analytics.length === 0) {
+      const today = new Date();
+      const currentYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      return [{ value: currentYM, label: today.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) }];
+    }
+    
+    // Find earliest date
+    const dates = analytics.map(a => new Date(a.day).getTime());
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(); // include up to today
+    
+    const list: { value: string; label: string }[] = [];
+    let current = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    
+    while (current <= end) {
+      const y = current.getFullYear();
+      const m = String(current.getMonth() + 1).padStart(2, '0');
+      const value = `${y}-${m}`;
+      const label = current.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+      list.push({ value, label });
+      current.setMonth(current.getMonth() + 1);
+    }
+    
+    // Return descending order so newest months are on top
+    return list.reverse();
+  }, [analytics]);
+
+  const filteredAvailableMonths = React.useMemo(() => {
+    if (selectedYear === 'all') return availableMonths;
+    return availableMonths.filter(m => m.value.startsWith(selectedYear));
+  }, [availableMonths, selectedYear]);
 
   // Prepare Chart Data
   const chartData = React.useMemo(() => {
@@ -391,10 +480,14 @@ export default function App() {
 
     // 1. Calculate starting balances (balances before the selected period)
     const startBalances: Record<string, number> = { RON: 0, EUR: 0 };
-    const sortedSelectedYears = [...selectedYears].map(Number).sort((a,b) => a - b);
-    const minYearStr = sortedSelectedYears.length > 0 ? sortedSelectedYears[0].toString() : null;
-    const yearStartStr = minYearStr ? `${minYearStr}-01-01` : '1970-01-01';
-    const yearStartTime = new Date(yearStartStr).getTime();
+    const periodStartStr = effectiveStartMonth && effectiveStartMonth !== 'all' ? `${effectiveStartMonth}-01` : '1970-01-01';
+    const periodStartTime = new Date(periodStartStr).getTime();
+
+    let periodEndTime = new Date().getTime();
+    if (effectiveEndMonth && effectiveEndMonth !== 'all') {
+      const [ey, em] = effectiveEndMonth.split('-').map(Number);
+      periodEndTime = new Date(ey, em, 0, 23, 59, 59, 999).getTime();
+    }
 
     currencies.forEach(curr => {
       const initial = filteredAccounts
@@ -407,7 +500,7 @@ export default function App() {
           if (!acc || acc.currency !== curr) return false;
           const matchesOwner = selectedOwners.length === 0 || selectedOwners.includes(acc.owner);
           const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
-          return matchesOwner && matchesBank && new Date(ana.day).getTime() < yearStartTime;
+          return matchesOwner && matchesBank && new Date(ana.day).getTime() < periodStartTime;
         })
         .reduce((sum, ana) => sum + ana.change, 0);
       
@@ -422,25 +515,26 @@ export default function App() {
       const matchesBank = selectedBank === 'all' || acc.bank_name === selectedBank;
       if (!(matchesOwner && matchesBank)) return false;
 
-      if (selectedYears.length === 0) return true;
-      const year = new Date(ana.day).getFullYear().toString();
-      return selectedYears.includes(year);
+      const time = new Date(ana.day).getTime();
+      return time >= periodStartTime && time <= periodEndTime;
     });
 
     // 3. Group by day
     const dailyChanges: Record<string, Record<string, number>> = {};
     
-    // Ensure we have a data point for "Today" and potentially the start of the year
+    // Ensure we have a data point for "Today" and potentially the start of the period
     const today = new Date().toISOString().split('T')[0];
-    const currentYear = new Date().getFullYear().toString();
+    const todayTime = new Date(today).getTime();
     
-    if (selectedYears.length === 0 || selectedYears.includes(currentYear)) {
+    const isCustomRange = (effectiveStartMonth && effectiveStartMonth !== 'all') || (effectiveEndMonth && effectiveEndMonth !== 'all');
+
+    if (todayTime >= periodStartTime && todayTime <= periodEndTime) {
       dailyChanges[today] = { RON: 0, EUR: 0 };
     }
     
-    if (minYearStr) {
-      const startOfYear = `${minYearStr}-01-01`;
-      if (!dailyChanges[startOfYear]) dailyChanges[startOfYear] = { RON: 0, EUR: 0 };
+    if (effectiveStartMonth && effectiveStartMonth !== 'all') {
+      const startDay = `${effectiveStartMonth}-01`;
+      if (!dailyChanges[startDay]) dailyChanges[startDay] = { RON: 0, EUR: 0 };
     }
 
     periodAnalytics.forEach(ana => {
@@ -459,7 +553,7 @@ export default function App() {
     let currentBalances = { ...startBalances };
     const rateVal = ronToEurRate || 0.201;
 
-    if (days.length === 0 && selectedYears.length === 0) {
+    if (days.length === 0 && !isCustomRange) {
        // No transactions ever, just show today
        const ronVal = Math.round(currentBalances.RON * 100) / 100;
        const eurVal = Math.round(currentBalances.EUR * 100) / 100;
@@ -504,7 +598,7 @@ export default function App() {
       let lastKnownEur = result[0].EUR;
       
       while (currentYear < targetYear || (currentYear === targetYear && currentMonth <= targetMonth)) {
-        // Form the last day of this month (day 0 of next month is the last day of current month)
+        // Form the last day of this month
         const nextMonthDate = new Date(currentYear, currentMonth + 1, 0);
         const nextMonthStr = nextMonthDate.toISOString().split('T')[0];
         
@@ -518,13 +612,13 @@ export default function App() {
         // Representative date of the month: YYYY-MM-01
         const repDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
         
-        // Only include the month if there are recorded transaction/balance changes within it or if a specific year is selected
+        // Only include the month if there are recorded transaction/balance changes within it or if a specific range is selected
         const hasChangesInMonth = periodAnalytics.some(ana => {
           const anaDate = new Date(ana.day);
           return anaDate.getFullYear() === currentYear && anaDate.getMonth() === currentMonth;
         });
         
-        const shouldInclude = hasChangesInMonth || (selectedYears.length > 0);
+        const shouldInclude = hasChangesInMonth || isCustomRange;
         
         if (shouldInclude) {
           monthlyResult.push({
@@ -545,8 +639,8 @@ export default function App() {
     }
 
     return result;
-  }, [accounts, analytics, selectedOwners, selectedBank, selectedYears, ronToEurRate]);
-  
+  }, [accounts, analytics, selectedOwners, selectedBank, effectiveStartMonth, effectiveEndMonth, ronToEurRate]);
+
   const years = React.useMemo(() => 
     Array.from(new Set(analytics.map(ana => new Date(ana.day).getFullYear().toString()))).sort().reverse()
   , [analytics]);
@@ -685,12 +779,18 @@ export default function App() {
     let eurIn = 0;
     let eurOut = 0;
 
+    const periodStartStr = effectiveStartMonth && effectiveStartMonth !== 'all' ? `${effectiveStartMonth}-01` : '1970-01-01';
+    const periodStartTime = new Date(periodStartStr).getTime();
+
+    let periodEndTime = new Date().getTime();
+    if (effectiveEndMonth && effectiveEndMonth !== 'all') {
+      const [ey, em] = effectiveEndMonth.split('-').map(Number);
+      periodEndTime = new Date(ey, em, 0, 23, 59, 59, 999).getTime();
+    }
+
     transactions.forEach(tx => {
-      // Filter by year if any selected
-      if (selectedYears.length > 0) {
-        const year = new Date(tx.date).getFullYear().toString();
-        if (!selectedYears.includes(year)) return;
-      }
+      const txTime = new Date(tx.date).getTime();
+      if (txTime < periodStartTime || txTime > periodEndTime) return;
 
       const isSourceFiltered = filteredAccountIds.has(tx.account_id);
       const isTargetFiltered = tx.to_account_id ? filteredAccountIds.has(tx.to_account_id) : false;
@@ -734,7 +834,7 @@ export default function App() {
         net: Math.round(eurNet * 100) / 100,
       }
     };
-  }, [transactions, filteredAccountsForStats, selectedYears]);
+  }, [transactions, filteredAccountsForStats, effectiveStartMonth, effectiveEndMonth]);
 
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden relative">
@@ -937,54 +1037,131 @@ export default function App() {
                   <div className="flex flex-col gap-3 w-full md:w-auto">
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-start md:justify-end">
                            <div className="flex items-center gap-2 relative">
-                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Years:</span>
+                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Period:</span>
                               <div className="relative">
                                 <button 
-                                  onClick={() => setIsYearFilterOpen(!isYearFilterOpen)}
-                                  className="flex items-center justify-between w-[120px] h-8 bg-white border border-gray-100 shadow-sm px-3 text-[11px] font-medium rounded-md hover:bg-gray-50 transition-colors shrink-0"
+                                  onClick={() => setIsRangeFilterOpen(!isRangeFilterOpen)}
+                                  className="flex items-center justify-between min-w-[140px] h-8 bg-white border border-gray-100 shadow-sm px-3 text-[11px] font-semibold rounded-md hover:bg-gray-50 transition-colors shrink-0"
                                 >
-                                  <span className="truncate max-w-[80px]">
-                                    {selectedYears.length === 0 ? 'All Years' : 
-                                     selectedYears.length === 1 ? selectedYears[0] : 
-                                     `${selectedYears.length} Selected`}
+                                  <span className="truncate max-w-[150px]">
+                                    {getRangeLabel()}
                                   </span>
-                                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${isYearFilterOpen ? 'rotate-180' : ''}`} />
+                                  <ChevronDown size={12} className={`text-gray-400 transition-transform ${isRangeFilterOpen ? 'rotate-180' : ''}`} />
                                 </button>
                                 
-                                {isYearFilterOpen && (
+                                {isRangeFilterOpen && (
                                   <>
                                     <div 
                                       className="fixed inset-0 z-40" 
-                                      onClick={() => setIsYearFilterOpen(false)}
+                                      onClick={() => setIsRangeFilterOpen(false)}
                                     />
-                                    <div className="absolute top-full right-0 mt-1 w-[150px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
-                                      <button 
-                                        className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
-                                        onClick={() => {
-                                          setSelectedYears([]);
-                                          setIsYearFilterOpen(false);
-                                        }}
-                                      >
-                                        <div className="w-4 h-4 flex items-center justify-center">
-                                          {selectedYears.length === 0 && <Check size={12} className="text-blue-600" />}
-                                        </div>
-                                        <span className={selectedYears.length === 0 ? 'font-bold text-blue-600' : ''}>All Years</span>
-                                      </button>
-                                      
-                                      <div className="h-px bg-gray-100 my-1" />
-                                      
-                                      {years.map(year => (
+                                    <div className="absolute top-full right-0 mt-1 w-[280px] bg-white border border-gray-100 rounded-lg shadow-lg z-50 p-4 space-y-4">
+                                      <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                        <span className="text-[11px] font-bold text-gray-700">Filter Period</span>
                                         <button 
-                                          key={year}
-                                          className="flex items-center gap-2 px-3 py-1.5 w-full text-left text-[11px] hover:bg-gray-50 transition-colors"
-                                          onClick={() => toggleYear(year)}
+                                          onClick={() => {
+                                            setSelectedYear('all');
+                                            setFilterByMonths(false);
+                                            setStartMonth('all');
+                                            setEndMonth('all');
+                                            setIsRangeFilterOpen(false);
+                                          }}
+                                          className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer"
                                         >
-                                          <div className="w-4 h-4 flex items-center justify-center border border-gray-200 rounded-sm bg-gray-50">
-                                            {selectedYears.includes(year) && <Check size={12} className="text-blue-600" />}
-                                          </div>
-                                          <span className={selectedYears.includes(year) ? 'font-bold text-blue-600' : ''}>{year}</span>
+                                          Reset All Time
                                         </button>
-                                      ))}
+                                      </div>
+
+                                      {/* Year Selection */}
+                                      <div className="space-y-1.5">
+                                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Select Year</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleYearSelect('all')}
+                                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition-all cursor-pointer ${
+                                              selectedYear === 'all'
+                                                ? 'bg-blue-50 border-blue-200 text-blue-600 shadow-sm'
+                                                : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                          >
+                                            All Time
+                                          </button>
+                                          {years.map(yr => (
+                                            <button
+                                              key={yr}
+                                              type="button"
+                                              onClick={() => handleYearSelect(yr)}
+                                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition-all cursor-pointer ${
+                                                selectedYear === yr
+                                                  ? 'bg-blue-50 border-blue-200 text-blue-600 shadow-sm'
+                                                  : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
+                                              }`}
+                                            >
+                                              {yr}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+
+                                      {/* Refine by month toggle */}
+                                      <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                                        <input
+                                          type="checkbox"
+                                          id="filterByMonths"
+                                          checked={filterByMonths}
+                                          onChange={(e) => setFilterByMonths(e.target.checked)}
+                                          className="rounded text-blue-600 focus:ring-blue-500 border-gray-200 cursor-pointer w-3.5 h-3.5"
+                                        />
+                                        <label htmlFor="filterByMonths" className="text-[10px] font-bold text-gray-600 cursor-pointer select-none">
+                                          Refine by months {selectedYear !== 'all' ? `of ${selectedYear}` : ''}
+                                        </label>
+                                      </div>
+
+                                      {/* Month inputs */}
+                                      {filterByMonths && (
+                                        <div className="grid grid-cols-2 gap-2 pt-1">
+                                          <div className="space-y-1">
+                                            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">From Month</label>
+                                            <select 
+                                              value={startMonth} 
+                                              onChange={(e) => setStartMonth(e.target.value)}
+                                              className="w-full text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none font-semibold focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              {selectedYear === 'all' && <option value="all">Earliest</option>}
+                                              {filteredAvailableMonths.map(m => (
+                                                <option key={`start-${m.value}`} value={m.value}>{m.label}</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                          <div className="space-y-1">
+                                            <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">To Month</label>
+                                            <select 
+                                              value={endMonth} 
+                                              onChange={(e) => setEndMonth(e.target.value)}
+                                              className="w-full text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1 outline-none font-semibold focus:ring-1 focus:ring-blue-500"
+                                            >
+                                              {selectedYear === 'all' && <option value="all">Latest (Today)</option>}
+                                              {filteredAvailableMonths.map(m => (
+                                                <option key={`end-${m.value}`} value={m.value}>{m.label}</option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {filterByMonths && startMonth !== 'all' && endMonth !== 'all' && startMonth > endMonth && (
+                                        <p className="text-[9px] text-red-500 font-bold">
+                                          * Start month is after end month.
+                                        </p>
+                                      )}
+
+                                      <button 
+                                        onClick={() => setIsRangeFilterOpen(false)}
+                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 rounded text-[10px] transition-colors shadow-sm cursor-pointer"
+                                      >
+                                        Apply Filter
+                                      </button>
                                     </div>
                                   </>
                                 )}
@@ -1118,7 +1295,7 @@ export default function App() {
                             </div>
                             <div>
                               <h2 className="font-bold text-sm tracking-tight">Portfolio Evolution</h2>
-                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getYearsLabel()} • EUR scaled to RON baseline for visual proportion</p>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Growth across {getRangeLabel()} • EUR scaled to RON baseline for visual proportion</p>
                             </div>
                           </div>
                           <div className="flex bg-gray-50 p-1 rounded-lg border border-gray-100">
@@ -1336,7 +1513,7 @@ export default function App() {
                             <div>
                               <h2 className="font-bold text-sm tracking-tight text-gray-900">Period Summary</h2>
                               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                                Net Growth ({getYearsLabel()})
+                                Net Growth ({getRangeLabel()})
                               </p>
                             </div>
                           </div>
