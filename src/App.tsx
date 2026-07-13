@@ -7,6 +7,7 @@ import {
   Plus, 
   ArrowRightLeft, 
   TrendingUp,
+  TrendingDown,
   PiggyBank,
   Building2,
   Trash2,
@@ -49,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.9.3';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -676,6 +677,65 @@ export default function App() {
     })).sort((a, b) => b.totalNormalized - a.totalNormalized);
   }, [filteredAccountsForStats, ronToEurRate]);
 
+  const quickSummary = React.useMemo(() => {
+    const filteredAccountIds = new Set(filteredAccountsForStats.map(a => a.id));
+
+    let ronIn = 0;
+    let ronOut = 0;
+    let eurIn = 0;
+    let eurOut = 0;
+
+    transactions.forEach(tx => {
+      // Filter by year if any selected
+      if (selectedYears.length > 0) {
+        const year = new Date(tx.date).getFullYear().toString();
+        if (!selectedYears.includes(year)) return;
+      }
+
+      const isSourceFiltered = filteredAccountIds.has(tx.account_id);
+      const isTargetFiltered = tx.to_account_id ? filteredAccountIds.has(tx.to_account_id) : false;
+
+      if (tx.type === 'DEPOSIT') {
+        if (isSourceFiltered) {
+          if (tx.currency === 'RON') ronIn += tx.amount;
+          if (tx.currency === 'EUR') eurIn += tx.amount;
+        }
+      } else if (tx.type === 'WITHDRAWAL') {
+        if (isSourceFiltered) {
+          if (tx.currency === 'RON') ronOut += tx.amount;
+          if (tx.currency === 'EUR') eurOut += tx.amount;
+        }
+      } else if (tx.type === 'TRANSFER') {
+        // Source is filtered in, target is filtered out -> Outflow for selection
+        if (isSourceFiltered && !isTargetFiltered) {
+          if (tx.currency === 'RON') ronOut += tx.amount;
+          if (tx.currency === 'EUR') eurOut += tx.amount;
+        }
+        // Source is filtered out, target is filtered in -> Inflow for selection
+        else if (!isSourceFiltered && isTargetFiltered) {
+          if (tx.currency === 'RON') ronIn += tx.amount;
+          if (tx.currency === 'EUR') eurIn += tx.amount;
+        }
+      }
+    });
+
+    const ronNet = ronIn - ronOut;
+    const eurNet = eurIn - eurOut;
+
+    return {
+      RON: {
+        in: Math.round(ronIn * 100) / 100,
+        out: Math.round(ronOut * 100) / 100,
+        net: Math.round(ronNet * 100) / 100,
+      },
+      EUR: {
+        in: Math.round(eurIn * 100) / 100,
+        out: Math.round(eurOut * 100) / 100,
+        net: Math.round(eurNet * 100) / 100,
+      }
+    };
+  }, [transactions, filteredAccountsForStats, selectedYears]);
+
   return (
     <div className="h-screen flex bg-[#F9FAFB] text-[#111827] font-sans overflow-hidden relative">
       <Toaster position="top-center" richColors />
@@ -1264,6 +1324,99 @@ export default function App() {
                   </div>
 
                   <div className="col-span-12 lg:col-span-4 space-y-6">
+                    {/* Period Summary (Quick Summary) Widget */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
+                      <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-blue-50/60 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 bg-slate-900 rounded-lg shadow-lg shadow-slate-100">
+                              <History size={16} className="text-white" />
+                            </div>
+                            <div>
+                              <h2 className="font-bold text-sm tracking-tight text-gray-900">Period Summary</h2>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                Net Growth ({getYearsLabel()})
+                              </p>
+                            </div>
+                          </div>
+                          <div className="bg-slate-100 px-2 py-0.5 rounded text-[9px] font-bold text-slate-600 uppercase tracking-tight">
+                            Flows
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                          {/* RON Panel */}
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">RON Net</span>
+                              <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded leading-none ${
+                                quickSummary.RON.net >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-red-600 bg-red-50'
+                              }`}>
+                                {quickSummary.RON.net >= 0 ? 'Growth' : 'Decline'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {quickSummary.RON.net >= 0 ? (
+                                <TrendingUp size={14} className="text-emerald-500 shrink-0" />
+                              ) : (
+                                <TrendingDown size={14} className="text-red-500 shrink-0" />
+                              )}
+                              <span className={`text-xs font-bold tracking-tight font-mono ${
+                                quickSummary.RON.net >= 0 ? 'text-emerald-600' : 'text-red-600'
+                              }`}>
+                                {quickSummary.RON.net >= 0 ? '+' : ''}{formatCurrency(quickSummary.RON.net, 'RON')}
+                              </span>
+                            </div>
+                            <div className="space-y-1 pt-1 border-t border-slate-200/50 text-[9px] font-mono">
+                              <div className="flex justify-between text-slate-400">
+                                <span className="font-sans">In:</span>
+                                <span className="font-semibold text-slate-600">+{formatCurrency(quickSummary.RON.in, 'RON')}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-400">
+                                <span className="font-sans">Out:</span>
+                                <span className="font-semibold text-slate-600">-{formatCurrency(quickSummary.RON.out, 'RON')}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* EUR Panel */}
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">EUR Net</span>
+                              <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded leading-none ${
+                                quickSummary.EUR.net >= 0 ? 'text-emerald-700 bg-emerald-50' : 'text-red-600 bg-red-50'
+                              }`}>
+                                {quickSummary.EUR.net >= 0 ? 'Growth' : 'Decline'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {quickSummary.EUR.net >= 0 ? (
+                                <TrendingUp size={14} className="text-emerald-500 shrink-0" />
+                              ) : (
+                                <TrendingDown size={14} className="text-red-500 shrink-0" />
+                              )}
+                              <span className={`text-xs font-bold tracking-tight font-mono ${
+                                quickSummary.EUR.net >= 0 ? 'text-emerald-600' : 'text-red-600'
+                              }`}>
+                                {quickSummary.EUR.net >= 0 ? '+' : ''}{formatCurrency(quickSummary.EUR.net, 'EUR')}
+                              </span>
+                            </div>
+                            <div className="space-y-1 pt-1 border-t border-slate-200/50 text-[9px] font-mono">
+                              <div className="flex justify-between text-slate-400">
+                                <span className="font-sans">In:</span>
+                                <span className="font-semibold text-slate-600">+{formatCurrency(quickSummary.EUR.in, 'EUR')}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-400">
+                                <span className="font-sans">Out:</span>
+                                <span className="font-semibold text-slate-600">-{formatCurrency(quickSummary.EUR.out, 'EUR')}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Currency Snapshot */}
                     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
                       <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
