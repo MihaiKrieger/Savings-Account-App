@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import compression from 'compression';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,6 +13,7 @@ async function startServer() {
   const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
+  app.use(compression());
   app.use(express.json());
 
   // --- API Routes ---
@@ -224,7 +226,15 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      maxAge: '1y',
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    }));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });

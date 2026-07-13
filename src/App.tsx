@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.6';
+const APP_VERSION = '1.10.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -97,6 +97,7 @@ export default function App() {
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
   const [ronToEurRate, setRonToEurRate] = useState<number | null>(null);
   const [deletingTxId, setDeletingTxId] = useState<number | null>(null);
+  const [visibleTxCount, setVisibleTxCount] = useState(50);
 
   const fetchExchangeRate = async () => {
     try {
@@ -135,6 +136,11 @@ export default function App() {
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER'>('all');
   const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance'>('balance');
   const [accountsSortOrder, setAccountsSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Reset transaction pagination when filters change
+  useEffect(() => {
+    setVisibleTxCount(50);
+  }, [searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder]);
 
   // Form states
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
@@ -786,6 +792,60 @@ export default function App() {
       percentage: grandTotal > 0 ? (e.totalNormalized / grandTotal) * 100 : 0
     })).sort((a, b) => b.totalNormalized - a.totalNormalized);
   }, [filteredAccountsForStats, ronToEurRate]);
+
+  const accountsMap = React.useMemo(() => {
+    const map = new Map<number, Account>();
+    accounts.forEach(a => map.set(a.id, a));
+    return map;
+  }, [accounts]);
+
+  const filteredTransactions = React.useMemo(() => {
+    const searchLower = searchQuery.toLowerCase();
+    
+    return transactions
+      .filter(tx => {
+        if (searchLower) {
+          const account = accountsMap.get(tx.account_id);
+          const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
+          const descMatch = tx.description?.toLowerCase().includes(searchLower);
+          const typeMatch = tx.type.toLowerCase().includes(searchLower);
+          const accMatch = account?.name.toLowerCase().includes(searchLower) || account?.bank_name.toLowerCase().includes(searchLower);
+          const targetAccMatch = targetAccount?.name.toLowerCase().includes(searchLower) || targetAccount?.bank_name.toLowerCase().includes(searchLower);
+          if (!descMatch && !typeMatch && !accMatch && !targetAccMatch) return false;
+        }
+
+        if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
+        if (selectedCurrency !== 'all' && tx.currency !== selectedCurrency) return false;
+
+        if (selectedOwners.length > 0) {
+          const account = accountsMap.get(tx.account_id);
+          const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
+          const accOwnerMatch = account ? selectedOwners.includes(account.owner) : false;
+          const targetOwnerMatch = targetAccount ? selectedOwners.includes(targetAccount.owner) : false;
+          if (!accOwnerMatch && !targetOwnerMatch) return false;
+        }
+
+        if (selectedBank !== 'all') {
+          const account = accountsMap.get(tx.account_id);
+          const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
+          const accBankMatch = account ? account.bank_name === selectedBank : false;
+          const targetBankMatch = targetAccount ? targetAccount.bank_name === selectedBank : false;
+          if (!accBankMatch && !targetBankMatch) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.date).getTime();
+        const timeB = new Date(b.date).getTime();
+        if (txSortOrder === 'newest') return timeB - timeA;
+        return timeA - timeB;
+      });
+  }, [transactions, accountsMap, searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder]);
+
+  const visibleTransactions = React.useMemo(() => {
+    return filteredTransactions.slice(0, visibleTxCount);
+  }, [filteredTransactions, visibleTxCount]);
 
   const quickSummary = React.useMemo(() => {
     const filteredAccountIds = new Set(filteredAccountsForStats.map(a => a.id));
@@ -2422,52 +2482,12 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                          {transactions
-                            .filter(tx => {
-                              const searchLower = searchQuery.toLowerCase();
-                              if (searchLower) {
-                                const account = accounts.find(a => a.id === tx.account_id);
-                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                                const descMatch = tx.description?.toLowerCase().includes(searchLower);
-                                const typeMatch = tx.type.toLowerCase().includes(searchLower);
-                                const accMatch = account?.name.toLowerCase().includes(searchLower) || account?.bank_name.toLowerCase().includes(searchLower);
-                                const targetAccMatch = targetAccount?.name.toLowerCase().includes(searchLower) || targetAccount?.bank_name.toLowerCase().includes(searchLower);
-                                if (!descMatch && !typeMatch && !accMatch && !targetAccMatch) return false;
-                              }
-
-                              if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
-                              if (selectedCurrency !== 'all' && tx.currency !== selectedCurrency) return false;
-
-                              if (selectedOwners.length > 0) {
-                                const account = accounts.find(a => a.id === tx.account_id);
-                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                                const accOwnerMatch = account ? selectedOwners.includes(account.owner) : false;
-                                const targetOwnerMatch = targetAccount ? selectedOwners.includes(targetAccount.owner) : false;
-                                if (!accOwnerMatch && !targetOwnerMatch) return false;
-                              }
-
-                              if (selectedBank !== 'all') {
-                                const account = accounts.find(a => a.id === tx.account_id);
-                                const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                                const accBankMatch = account ? account.bank_name === selectedBank : false;
-                                const targetBankMatch = targetAccount ? targetAccount.bank_name === selectedBank : false;
-                                if (!accBankMatch && !targetBankMatch) return false;
-                              }
-
-                              return true;
-                            })
-                            .sort((a, b) => {
-                              const timeA = new Date(a.date).getTime();
-                              const timeB = new Date(b.date).getTime();
-                              if (txSortOrder === 'newest') return timeB - timeA;
-                              return timeA - timeB;
-                            })
-                            .map((tx) => {
-                              const account = accounts.find(a => a.id === tx.account_id);
-                              const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                              
-                              return (
-                                <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
+                          {visibleTransactions.map((tx) => {
+                            const account = accountsMap.get(tx.account_id);
+                            const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
+                            
+                            return (
+                              <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
                                   <td className="px-4 py-3">
                                     <div className="flex items-center gap-3">
                                       {/* Beautiful status/direction icons */}
@@ -2600,52 +2620,12 @@ export default function App() {
 
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-3 pb-8">
-                    {transactions
-                      .filter(tx => {
-                        const searchLower = searchQuery.toLowerCase();
-                        if (searchLower) {
-                          const account = accounts.find(a => a.id === tx.account_id);
-                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                          const descMatch = tx.description?.toLowerCase().includes(searchLower);
-                          const typeMatch = tx.type.toLowerCase().includes(searchLower);
-                          const accMatch = account?.name.toLowerCase().includes(searchLower) || account?.bank_name.toLowerCase().includes(searchLower);
-                          const targetAccMatch = targetAccount?.name.toLowerCase().includes(searchLower) || targetAccount?.bank_name.toLowerCase().includes(searchLower);
-                          if (!descMatch && !typeMatch && !accMatch && !targetAccMatch) return false;
-                        }
-
-                        if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false;
-                        if (selectedCurrency !== 'all' && tx.currency !== selectedCurrency) return false;
-
-                        if (selectedOwners.length > 0) {
-                          const account = accounts.find(a => a.id === tx.account_id);
-                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                          const accOwnerMatch = account ? selectedOwners.includes(account.owner) : false;
-                          const targetOwnerMatch = targetAccount ? selectedOwners.includes(targetAccount.owner) : false;
-                          if (!accOwnerMatch && !targetOwnerMatch) return false;
-                        }
-
-                        if (selectedBank !== 'all') {
-                          const account = accounts.find(a => a.id === tx.account_id);
-                          const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                          const accBankMatch = account ? account.bank_name === selectedBank : false;
-                          const targetBankMatch = targetAccount ? targetAccount.bank_name === selectedBank : false;
-                          if (!accBankMatch && !targetBankMatch) return false;
-                        }
-
-                        return true;
-                      })
-                      .sort((a, b) => {
-                        const timeA = new Date(a.date).getTime();
-                        const timeB = new Date(b.date).getTime();
-                        if (txSortOrder === 'newest') return timeB - timeA;
-                        return timeA - timeB;
-                      })
-                      .map((tx) => {
-                        const account = accounts.find(a => a.id === tx.account_id);
-                        const targetAccount = tx.to_account_id ? accounts.find(a => a.id === tx.to_account_id) : null;
-                        
-                        return (
-                          <Card key={tx.id} className="shadow-sm border-gray-100">
+                    {visibleTransactions.map((tx) => {
+                      const account = accountsMap.get(tx.account_id);
+                      const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
+                      
+                      return (
+                        <Card key={tx.id} className="shadow-sm border-gray-100">
                             <CardContent className="p-4">
                               <div className="flex justify-between items-start mb-2">
                                 <span className={`text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded ${
@@ -2735,6 +2715,17 @@ export default function App() {
                         );
                       })}
                   </div>
+
+                  {filteredTransactions.length > visibleTxCount && (
+                    <div className="flex justify-center pt-4 pb-4">
+                      <button
+                        onClick={() => setVisibleTxCount(prev => prev + 50)}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-gray-50 border border-gray-200 text-slate-700 text-xs font-bold rounded-xl shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                      >
+                        Load More Transactions ({filteredTransactions.length - visibleTxCount} remaining)
+                      </button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

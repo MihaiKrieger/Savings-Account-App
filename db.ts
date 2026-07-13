@@ -61,6 +61,14 @@ db.exec(`
   );
 `);
 
+// Add indexes to optimize JOIN operations, foreign key constraints, and analytics grouping
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions (account_id);
+  CREATE INDEX IF NOT EXISTS idx_transactions_from_account_id ON transactions (from_account_id);
+  CREATE INDEX IF NOT EXISTS idx_transactions_to_account_id ON transactions (to_account_id);
+  CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+`);
+
 // Seed initial accounts if empty
 const count = db.prepare('SELECT count(*) as count FROM accounts').get() as { count: number };
 if (count.count === 0) {

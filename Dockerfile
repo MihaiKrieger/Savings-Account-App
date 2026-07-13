@@ -1,38 +1,38 @@
-# Stage 1: Build the frontend and install dependencies
-FROM node:22-alpine AS builder
-WORKDIR /app
+# Stage 1: Build & Compile
+FROM node:20-alpine AS builder
 
-# Install build dependencies for better-sqlite3 (native modules)
+# Install build essentials for native better-sqlite3 compilation
 RUN apk add --no-cache python3 make g++
 
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-RUN npm run build
-
-# Stage 2: Production environment
-FROM node:22-alpine
 WORKDIR /app
 
-# Copy built assets and server code
-COPY --from=builder /app/package*.json ./
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm ci
+
+COPY . .
+
+# Build the application (compiles client assets and bundles the server into dist/server.cjs)
+RUN npm run build
+
+# Prune devDependencies to keep node_modules strictly lightweight for production
+RUN npm prune --production
+
+# Stage 2: Production Runtime
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package metadata, production-only node_modules, and compiled server/client files
+COPY package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server.ts ./
-COPY --from=builder /app/db.ts ./
-
-# Install tsx globally to run the server.ts file
-RUN npm install -g tsx
-
-# Create a directory for the persistent database
-RUN mkdir -p /app/data
-
-# Environment defaults
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV DATABASE_URL=file:/app/data/savings.db
 
 EXPOSE 3000
 
-CMD ["tsx", "server.ts"]
+ENV PORT=3000
+ENV NODE_ENV=production
+
+# Execute using native Node directly (bypassing npm overhead to save memory and CPU)
+CMD ["node", "dist/server.cjs"]
