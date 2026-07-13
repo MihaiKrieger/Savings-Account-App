@@ -6,8 +6,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let _filename = '';
+let _dirname = '';
+
+try {
+  _filename = fileURLToPath(import.meta.url);
+  _dirname = path.dirname(_filename);
+} catch {
+  try {
+    _filename = __filename;
+    _dirname = __dirname;
+  } catch {}
+}
 
 async function startServer() {
   const app = express();
