@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.9.5';
+const APP_VERSION = '1.9.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -96,6 +96,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
   const [ronToEurRate, setRonToEurRate] = useState<number | null>(null);
+  const [deletingTxId, setDeletingTxId] = useState<number | null>(null);
 
   const fetchExchangeRate = async () => {
     try {
@@ -354,6 +355,21 @@ export default function App() {
         fetchData();
       } else {
         toast.error('Failed to delete account');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const deleteTransaction = async (id: number) => {
+    try {
+      const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Transaction deleted');
+        fetchData();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to delete transaction');
       }
     } catch (error) {
       toast.error('Connection error');
@@ -2402,6 +2418,7 @@ export default function App() {
                             <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Owner</th>
                             <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Timestamp</th>
                             <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Value</th>
+                            <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -2540,6 +2557,39 @@ export default function App() {
                                     {tx.type === 'WITHDRAWAL' || tx.type === 'TRANSFER' ? '−' : '+'}
                                     {formatCurrency(tx.amount, tx.currency)}
                                   </td>
+
+                                  <td className="px-4 py-3 text-center">
+                                    {deletingTxId === tx.id ? (
+                                      <div className="flex items-center justify-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          onClick={() => {
+                                            deleteTransaction(tx.id);
+                                            setDeletingTxId(null);
+                                          }}
+                                          className="text-[10px] font-bold bg-rose-500 hover:bg-rose-600 text-white px-2 py-1 rounded shadow-sm transition-colors cursor-pointer"
+                                        >
+                                          Confirm
+                                        </button>
+                                        <button
+                                          onClick={() => setDeletingTxId(null)}
+                                          className="text-[10px] font-bold bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded transition-colors cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeletingTxId(tx.id);
+                                        }}
+                                        className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                        title="Delete Transaction"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -2632,8 +2682,8 @@ export default function App() {
                                   ) : (
                                     <span>{account?.bank_name}</span>
                                   )}
-                                </div>
-                                <p className="text-xs text-slate-500 italic mt-1.5">{tx.description || 'System entry'}</p>
+                                 </div>
+                                 <p className="text-xs text-slate-500 italic mt-1.5">{tx.description || 'System entry'}</p>
                               </div>
 
                               <div className="flex justify-between items-center pt-2.5 border-t border-gray-100">
@@ -2642,6 +2692,34 @@ export default function App() {
                                   <span className="text-[10px] font-semibold text-slate-600 bg-slate-50 px-2 py-0.5 rounded-full border border-gray-100">
                                     {account?.owner || targetAccount?.owner || '—'}
                                   </span>
+                                  
+                                  {deletingTxId === tx.id ? (
+                                    <div className="flex items-center gap-1.5 ml-2">
+                                      <button
+                                        onClick={() => {
+                                          deleteTransaction(tx.id);
+                                          setDeletingTxId(null);
+                                        }}
+                                        className="text-[9px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded shadow-sm cursor-pointer"
+                                      >
+                                        Yes
+                                      </button>
+                                      <button
+                                        onClick={() => setDeletingTxId(null)}
+                                        className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded cursor-pointer"
+                                      >
+                                        No
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setDeletingTxId(tx.id)}
+                                      className="text-gray-400 hover:text-rose-500 p-1 ml-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="Delete Transaction"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
                                 </div>
                                 <span className={`text-sm font-mono font-bold tracking-tight ${
                                   tx.type === 'DEPOSIT' ? 'text-emerald-600' : 

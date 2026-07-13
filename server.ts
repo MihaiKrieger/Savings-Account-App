@@ -142,6 +142,50 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     }
   });
 
+  app.delete('/api/transactions/:id', (req, res) => {
+    const { id } = req.params;
+    
+    const deletion = db.transaction(() => {
+      // 1. Get transaction info
+      const tx = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id) as {
+        id: number;
+        account_id: number;
+        to_account_id: number | null;
+        type: string;
+        amount: number;
+      } | undefined;
+
+      if (!tx) {
+        throw new Error(`Transaction with ID ${id} not found`);
+      }
+
+      // 2. Reverse balance changes on accounts
+      if (tx.type === 'DEPOSIT') {
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance - ?, 2) WHERE id = ?').run(tx.amount, tx.account_id);
+      } else if (tx.type === 'WITHDRAWAL') {
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance + ?, 2) WHERE id = ?').run(tx.amount, tx.account_id);
+      } else if (tx.type === 'TRANSFER') {
+        // Refund source account
+        db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance + ?, 2) WHERE id = ?').run(tx.amount, tx.account_id);
+        // Deduct from target account
+        if (tx.to_account_id) {
+          db.prepare('UPDATE accounts SET current_balance = ROUND(current_balance - ?, 2) WHERE id = ?').run(tx.amount, tx.to_account_id);
+        }
+      }
+
+      // 3. Delete the transaction
+      db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
+    });
+
+    try {
+      deletion();
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error(error);
+      res.status(400).json({ error: error.message || 'Failed to delete transaction' });
+    }
+  });
+
   // Analytics: Balance evolution (simplified: just summary per day)
   app.get('/api/analytics', (req, res) => {
     try {
