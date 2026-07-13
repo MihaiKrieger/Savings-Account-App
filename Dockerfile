@@ -1,5 +1,5 @@
 # Stage 1: Build & Compile
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Install build essentials for native better-sqlite3 compilation
 RUN apk add --no-cache python3 make g++
@@ -20,7 +20,7 @@ RUN npm run build
 RUN npm prune --production
 
 # Stage 2: Production Runtime
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
