@@ -13,8 +13,8 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 - **Styling & UI**: Tailwind CSS v4, Lucide React (icon library), Motion (for smooth layout transitions and structural animations)
 - **Charts / Dataviz**: Recharts (fully responsive canvas layout widgets)
 - **Notification System**: Sonner (declarative toast notifications)
-- **Backend Service**: Express.js server (Node.js runtime environment running behind a reverse proxy forwarding port `3000`)
-- **Database Engine**: Local SQLite instance operated via `better-sqlite3`
+- **Backend Service**: Express.js server (Node.js runtime environment running behind a reverse proxy forwarding port `3000` with payload `compression` enabled)
+- **Database Engine**: Local SQLite instance operated via `better-sqlite3`, reinforced with performance index schemas
 - **Compiler / Bundler**: TypeScript Type Checking via `tsc`, production backend bundles via `esbuild` targeted directly to CommonJS (`.cjs`) to bypass native Node ES Module relative importing constraints.
 
 ### File Tree & Directory Map
@@ -23,11 +23,12 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 ├─ .env.example              # Environment variables template
 ├─ .gitignore                # Blocked build artifacts and DB files (savings.db is ignored in git, persists locally)
 ├─ AGENTS.md                 # [THIS FILE] Absolute master context specification for AI agents
-├─ db.ts                     # Database driver and SQLite table schema definitions
+├─ Dockerfile                # Optimized multi-stage Docker build for production deployments
+├─ db.ts                     # Database driver, SQLite table schema definitions, and index setups
 ├─ index.html                # Vite HTML primary mount index
 ├─ package.json              # Node dependencies, scripts, and baseline version properties
 ├─ savings.db                # Local SQLite database binary (git-ignored, self-seeded if empty)
-├─ server.ts                 # Express.js REST API service layer & Vite dev server middleware proxy
+├─ server.ts                 # Express.js REST API service layer, asset compression, caching, & Vite middleware proxy
 ├─ tsconfig.json             # TypeScript structural compiler options
 ├─ vite.config.ts            # Vite compiler configuration utilizing @tailwindcss/vite plugins
 └─ src/
@@ -124,6 +125,15 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 ```
 
+### Database Performance Optimization Indexes
+To ensure high-speed query operations during heavy transactional logging, analytics groupings, and JOIN operations, the database maintains the following indexes:
+```sql
+CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions (account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_from_account_id ON transactions (from_account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_to_account_id ON transactions (to_account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+```
+
 ### Automatic Database Seeding Checks
 If the `accounts` table is initialized empty on container boot:
 1. Inserts five standard seed accounts:
@@ -132,7 +142,7 @@ If the `accounts` table is initialized empty on container boot:
    - Family Savings (RON / Owner: Elena / Institution: ING Romania)
    - EUR Holidays (EUR / Owner: Elena / Institution: Banca Transilvania)
    - Global Investment (EUR / Owner: Mihai / Institution: Wise)
-2. Executes initial transaction logs (Deposits and Withdrawals) spanning historic timestamps spanning back 25 days, automatically correcting and scaling database account balances dynamically using rounding algorithms.
+2. Executes initial transaction logs (Deposits and Withdrawals) spanning back 25 days, automatically correcting and scaling database account balances dynamically using rounding algorithms.
 
 ---
 
@@ -208,6 +218,12 @@ Core state variables inside `src/App.tsx` coordinate data streams fetched on sta
   - `selectedYear`: Time slices supporting charting scopes (`all` or selected years).
   - `chartView`: Visualization layouts (`bar` or `line` representation).
 
+### UI DOM & Rendering Optimizations
+To ensure seamless interactions with high transaction volumes:
+- **Transaction Pagination / Virtualization**: Rather than rendering the entire transaction log on a single screen, the UI uses `visibleTxCount` (starting at 50) and displays a "Load More" action button. `visibleTxCount` automatically resets to 50 when active filters (search query, types, currencies, owners, banks, sorting) change to prevent DOM overload and memory bloat.
+- **Memoized Computing Engine**: Computations for statistics, account summaries, transaction filtering (`filteredTransactions`), and sliced transaction arrays (`visibleTransactions`) are wrapped inside robust `React.useMemo` Hooks. Redundant, heavy linear array scans are completely bypassed.
+- **Account Dictionary Map**: Inside `src/App.tsx`, a pre-calculated `accountsMap` dictionary (`Map<number, Account>`) is computed and memoized to replace nested `.find()` operations with fast $O(1)$ key-value lookups when pairing transactions with their associated account data.
+
 ### Asset Aggregations Formulations
 - **Individual Currency Balances**: Sum totals parsed from items sharing matching `currency` designations.
 - **Portfolio Evolution Line & Bar Coordinates**:
@@ -235,9 +251,15 @@ Econosmishu implements an elegant, responsive design philosophy built to represe
 ## 7. Versioning & Operational Principles
 
 ### Versioning Rules
-- **Functional modifications or bug-fixes**: Increment the third block (Patch notation e.g., `1.7.x` ➔ `1.7.x+1`) inside `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` variable).
-- **Major visual or feature introductions**: Increment the secondary minor block (Minor notation e.g., `1.7.4` ➔ `1.8.0`).
+- **Functional modifications or bug-fixes**: Increment the third block (Patch notation e.g., `1.10.x` ➔ `1.10.x+1`) inside `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` variable).
+- **Major visual or feature introductions**: Increment the secondary minor block (Minor notation e.g., `1.10.0` ➔ `1.11.0`).
 - **Strict Baseline Control**: Version `1.7.0` is the unbreakable legacy root baseline of this project.
+
+### Production Environment Safety (Dockerfile & server.ts)
+- **CJS Bundle Compatibility**: To handle esbuild's bundling of `server.ts` into a standalone CommonJS `dist/server.cjs` file, runtime path resolutions are secured by fallback try-catch scopes to prevent invalid global exceptions for `import.meta.url`, `__filename`, and `__dirname`.
+- **Multi-Stage Docker Setup**: Docker-compose builds use a builder step (Alpine Node, build-essentials Python/Make/G++ for native SQLite compilations) and copy output assets onto a secure, minimal run stage running under Native Node (minimizing image size, cold-boot lag, and execution overhead).
+- **Asset compression**: Network payload sizes are optimized through Gzip asset compression via the `compression` Express middleware.
+- **Static asset cache policy**: Static static assets in production (`/dist`) are served with an immutable 1-year cache configuration, except for the HTML entrypoint (`index.html`) which remains fresh with `no-cache, no-store, must-revalidate`.
 
 ### Instructions for AI Session Continuation
 If context has been wiped or a new session is being created:
