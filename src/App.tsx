@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.10.2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -91,7 +91,6 @@ export default function App() {
   const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'RON' | 'EUR'>('all');
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
-  const [dashboardAccountSort, setDashboardAccountSort] = useState<'balance' | 'name' | 'due_date'>('balance');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
@@ -134,7 +133,7 @@ export default function App() {
   };
   const [txSortOrder, setTxSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [txTypeFilter, setTxTypeFilter] = useState<'all' | 'DEPOSIT' | 'WITHDRAWAL' | 'TRANSFER'>('all');
-  const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance'>('balance');
+  const [accountsSortField, setAccountsSortField] = useState<'owner' | 'bank' | 'currency' | 'balance' | 'due_date'>('balance');
   const [accountsSortOrder, setAccountsSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Reset transaction pagination when filters change
@@ -1699,71 +1698,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
-                      <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-indigo-50 rounded-full opacity-50 group-hover:scale-125 transition-transform duration-700"></div>
-                      <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-6">
-                           <div className="flex items-center gap-2">
-                             <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-100">
-                               <Building2 size={16} className="text-white" />
-                             </div>
-                             <div>
-                               <h2 className="font-bold text-sm tracking-tight text-indigo-900">Accounts</h2>
-                               <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">Managed Balances</p>
-                             </div>
-                           </div>
-                           <Select 
-                            value={dashboardAccountSort} 
-                            onValueChange={(v: 'balance' | 'name' | 'due_date') => setDashboardAccountSort(v)}
-                          >
-                            <SelectTrigger className="h-7 w-[110px] text-[10px] border-none bg-gray-50 shadow-none font-bold uppercase tracking-tighter">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="balance" label="Sort: Balance">Sort: Balance</SelectItem>
-                              <SelectItem value="name" label="Sort: Owner">Sort: Owner</SelectItem>
-                              <SelectItem value="due_date" label="Sort: Due Date">Sort: Due Date</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-4">
-                          {filteredAccountsForStats
-                            .filter(a => a.is_active)
-                            .sort((a,b) => {
-                              if (dashboardAccountSort === 'balance') return b.current_balance - a.current_balance;
-                              if (dashboardAccountSort === 'due_date') {
-                                if (!a.due_date) return 1;
-                                if (!b.due_date) return -1;
-                                return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-                              }
-                              return a.owner.localeCompare(b.owner);
-                            })
-                            .map(acc => (
-                            <div key={acc.id} className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 transition-all">
-                              <div className="flex gap-3">
-                                <div className="w-2 h-2 rounded-full bg-indigo-600 mt-2 shrink-0"></div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-start mb-1">
-                                    <p className="text-xs font-bold text-indigo-900 uppercase tracking-tight truncate pr-2">{acc.name}</p>
-                                    <p className="text-xs font-black text-gray-900 shrink-0">{formatCurrency(acc.current_balance, acc.currency)}</p>
-                                  </div>
-                                  <div className="flex justify-between items-center">
-                                    <p className="text-[10px] text-gray-400 uppercase font-medium tracking-tighter">{acc.bank_name}</p>
-                                    {acc.due_date && (
-                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border ${getDueDateTheme(acc.due_date)}`}>
-                                        <CalendarDays size={10} />
-                                        <span className="text-[9px] font-bold whitespace-nowrap">{formatDate(acc.due_date, 'long')}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
                   </div>
                 </div>
               </motion.div>
@@ -1889,6 +1823,7 @@ export default function App() {
                            <SelectItem value="owner">Owner</SelectItem>
                            <SelectItem value="bank">Bank</SelectItem>
                            <SelectItem value="currency">Currency</SelectItem>
+                           <SelectItem value="due_date">Due Date</SelectItem>
                          </SelectContent>
                        </Select>
                     </div>
@@ -1935,6 +1870,12 @@ export default function App() {
                               else if (accountsSortField === 'owner') comparison = a.owner.localeCompare(b.owner);
                               else if (accountsSortField === 'bank') comparison = a.bank_name.localeCompare(b.bank_name);
                               else if (accountsSortField === 'currency') comparison = a.currency.localeCompare(b.currency);
+                              else if (accountsSortField === 'due_date') {
+                                if (!a.due_date && !b.due_date) comparison = 0;
+                                else if (!a.due_date) comparison = 1;
+                                else if (!b.due_date) comparison = -1;
+                                else comparison = a.due_date.localeCompare(b.due_date);
+                              }
                               
                               return accountsSortOrder === 'desc' ? -comparison : comparison;
                             })
@@ -2122,6 +2063,12 @@ export default function App() {
                         else if (accountsSortField === 'owner') comparison = a.owner.localeCompare(b.owner);
                         else if (accountsSortField === 'bank') comparison = a.bank_name.localeCompare(b.bank_name);
                         else if (accountsSortField === 'currency') comparison = a.currency.localeCompare(b.currency);
+                        else if (accountsSortField === 'due_date') {
+                          if (!a.due_date && !b.due_date) comparison = 0;
+                          else if (!a.due_date) comparison = 1;
+                          else if (!b.due_date) comparison = -1;
+                          else comparison = a.due_date.localeCompare(b.due_date);
+                        }
                         return accountsSortOrder === 'desc' ? -comparison : comparison;
                       })
                       .map((acc) => (
