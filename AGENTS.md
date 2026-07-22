@@ -23,7 +23,8 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 ├─ .env.example              # Environment variables template
 ├─ .gitignore                # Blocked build artifacts and DB files (savings.db is ignored in git, persists locally)
 ├─ AGENTS.md                 # [THIS FILE] Absolute master context specification for AI agents
-├─ Dockerfile                # Optimized multi-stage Docker build for production deployments
+├─ Dockerfile                # Multi-stage Docker build for production deployments (using Node 22-alpine)
+├─ README.md                 # General project documentation and user overview
 ├─ db.ts                     # Database driver, SQLite table schema definitions, and index setups
 ├─ index.html                # Vite HTML primary mount index
 ├─ package.json              # Node dependencies, scripts, and baseline version properties
@@ -154,8 +155,8 @@ Below are the operational backend API handles declared in `server.ts`. Every end
 - **`GET /api/accounts`**
   - **Returns**: `200 OK` — `Account[]` ordered strictly alphabetically by account `name`.
 - **`POST /api/accounts`**
-  - **Payload**: `Omit<Account, "id" | "current_balance" | "created_at">`
-  - **Action**: Persists record. Overrides `current_balance` with `initial_balance`. Automatically parses standard boolean flags to integers (0 or 1).
+  - **Payload**: `Omit<Account, "id" | "current_balance" | "created_at">` (with optional `initial_balance` amount)
+  - **Action**: Persists record inside an atomic `db.transaction`. If `initial_balance` > 0, automatically creates an initial `DEPOSIT` transaction of amount `initial_balance` with description `'Initial deposit'`, and sets `current_balance` equal to `initial_balance`. If `initial_balance` is 0 or omitted, sets `initial_balance` and `current_balance` to 0. Automatically parses boolean `is_active` flags to integers (0 or 1).
   - **Returns**: `201 Created` — The fully instantiated `Account` record.
 - **`PUT /api/accounts/:id`**
   - **Payload**: `Pick<Account, "owner" | "bank_name" | "name" | "description" | "is_active" | "due_date">`
@@ -213,8 +214,11 @@ Core state variables inside `src/App.tsx` coordinate data streams fetched on sta
 - `analyticsData`: Historic metrics array passed directly to charting utilities.
 - Filters & UI Selectors:
   - `activeTab`: Dynamic toggles supporting views (`dashboard`, `saving-accounts`, `transactions`, `analytics`).
-  - `selectedOwner`: Master system filters (`all`, `Mihai`, `Elena`).
-  - `selectedCurrency`: System primary balance indicators (`all`, `RON`, `EUR`).
+  - `selectedOwners`: Master system owner filter array supporting multi-selection.
+  - `selectedBank` & `selectedCurrency`: System primary bank and currency indicators.
+  - `accountsSortField`: Account sorting selector (`balance`, `owner`, `bank`, `currency`, `due_date`).
+  - `accountsSortOrder`: Sort ordering (`asc` or `desc`).
+  - `accountStatusFilter`: Status selector (`all`, `active`, `inactive`) allowing soft-deactivated accounts to remain in ledger history without cluttering active views.
   - `selectedYear`: Time slices supporting charting scopes (`all` or selected years).
   - `chartView`: Visualization layouts (`bar` or `line` representation).
 
@@ -253,7 +257,6 @@ Econosmishu implements an elegant, responsive design philosophy built to represe
 ### Versioning Rules
 - **Functional modifications or bug-fixes**: Increment the third block (Patch notation e.g., `1.10.x` ➔ `1.10.x+1`) inside `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` variable).
 - **Major visual or feature introductions**: Increment the secondary minor block (Minor notation e.g., `1.10.0` ➔ `1.11.0`).
-- **Strict Baseline Control**: Version `1.7.0` is the unbreakable legacy root baseline of this project.
 
 ### Production Environment Safety (Dockerfile & server.ts)
 - **CJS Bundle Compatibility**: To handle esbuild's bundling of `server.ts` into a standalone CommonJS `dist/server.cjs` file, runtime path resolutions are secured by fallback try-catch scopes to prevent invalid global exceptions for `import.meta.url`, `__filename`, and `__dirname`.
