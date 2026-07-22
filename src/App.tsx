@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.10.2';
+const APP_VERSION = '1.10.4';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -264,7 +264,7 @@ export default function App() {
       const res = await fetch('/api/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newAccount, initial_balance: 0, is_active: true })
+        body: JSON.stringify({ ...newAccount, initial_balance: Number(newAccount.initial_balance) || 0, is_active: true })
       });
       if (res.ok) {
         toast.success('Account created successfully');
@@ -2577,15 +2577,29 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Currency</Label>
-                <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
-                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RON" label="RON">RON</SelectItem>
-                    <SelectItem value="EUR" label="EUR">EUR</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Currency</Label>
+                  <Select value={newAccount.currency} onValueChange={(v: Currency) => setNewAccount({...newAccount, currency: v})}>
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RON" label="RON">RON</SelectItem>
+                      <SelectItem value="EUR" label="EUR">EUR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Initial Amount (Optional)</Label>
+                  <Input 
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium font-mono" 
+                    value={newAccount.initial_balance || ''} 
+                    onChange={e => setNewAccount({...newAccount, initial_balance: parseFloat(e.target.value) || 0})} 
+                    placeholder="0.00" 
+                  />
+                </div>
               </div>
 
               <div className="space-y-1.5">

@@ -40,15 +40,34 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   app.post('/api/accounts', (req, res) => {
     const { owner, bank_name, name, description, currency, initial_balance, is_active, due_date } = req.body;
+    const initialAmount = Number(initial_balance) || 0;
     try {
-      const info = db.prepare(`
-        INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, is_active, due_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(owner, bank_name, name, description, currency, initial_balance, initial_balance, is_active === false ? 0 : 1, due_date || null);
-      
-      const newAccount = db.prepare('SELECT * FROM accounts WHERE id = ?').get(info.lastInsertRowid);
+      const newAccount = db.transaction(() => {
+        const info = db.prepare(`
+          INSERT INTO accounts (owner, bank_name, name, description, currency, initial_balance, current_balance, is_active, due_date)
+          VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
+        `).run(owner, bank_name, name, description, currency, is_active === false ? 0 : 1, due_date || null);
+        
+        const accountId = info.lastInsertRowid;
+
+        if (initialAmount > 0) {
+          const nowISO = new Date().toISOString();
+          db.prepare(`
+            INSERT INTO transactions (account_id, type, amount, currency, description, date)
+            VALUES (?, 'DEPOSIT', ?, ?, 'Initial deposit', ?)
+          `).run(accountId, initialAmount, currency, nowISO);
+
+          db.prepare(`
+            UPDATE accounts SET current_balance = ROUND(?, 2) WHERE id = ?
+          `).run(initialAmount, accountId);
+        }
+
+        return db.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId);
+      })();
+
       res.status(201).json(newAccount);
     } catch (error) {
+      console.error('Failed to create account:', error);
       res.status(500).json({ error: 'Failed to create account' });
     }
   });
