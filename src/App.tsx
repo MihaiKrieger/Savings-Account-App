@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.10.4';
+const APP_VERSION = '1.10.6';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
