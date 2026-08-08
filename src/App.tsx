@@ -54,7 +54,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '2026.8.2';
+const APP_VERSION = '2026.8.3';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1136,6 +1136,28 @@ export default function App() {
             label="Activity"
             collapsed={isSidebarCollapsed}
           />
+
+          <div className="pt-3 mt-3 border-t border-gray-100 space-y-1">
+            {!isSidebarCollapsed && (
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-1">
+                Settings
+              </div>
+            )}
+            <NavItem 
+              active={false} 
+              onClick={() => { setIsManageOwnersOpen(true); setIsMobileMenuOpen(false); }} 
+              icon={<Users size={20} />} 
+              label="Manage Owners"
+              collapsed={isSidebarCollapsed}
+            />
+            <NavItem 
+              active={false} 
+              onClick={() => { setIsManageBanksOpen(true); setIsMobileMenuOpen(false); }} 
+              icon={<Building2 size={20} />} 
+              label="Manage Banks"
+              collapsed={isSidebarCollapsed}
+            />
+          </div>
         </nav>
 
         <div className={`mt-auto p-6 border-t border-gray-50 flex items-center ${isSidebarCollapsed ? 'justify-center px-4' : 'gap-2'}`}>
@@ -1149,89 +1171,62 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top Header */}
-        <header className="h-16 border-b border-[#E5E7EB] bg-white flex items-center justify-between px-4 lg:px-8 flex-shrink-0">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+        <header className="h-16 border-b border-[#E5E7EB] bg-white flex items-center justify-between px-3 sm:px-4 lg:px-8 flex-shrink-0 gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+              className="lg:hidden p-2 -ml-1 sm:-ml-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+              aria-label="Open sidebar menu"
             >
               <Menu size={20} />
             </button>
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="hidden lg:flex p-2 -ml-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              className="hidden lg:flex p-2 -ml-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors shrink-0"
               title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
               <Menu size={18} />
             </button>
-            <div className="relative w-full max-w-md">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+            <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md min-w-0">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
                 <BarChart3 className="w-4 h-4" />
               </span>
               <input 
                 type="text" 
-                className="block w-full pl-10 pr-3 py-2 border-none bg-gray-50 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 transition-all outline-none" 
+                className="block w-full pl-9 sm:pl-10 pr-3 py-1.5 sm:py-2 border-none bg-gray-50 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-blue-100 transition-all outline-none truncate" 
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Settings Stack */}
-            <div className="flex items-center gap-1.5 sm:gap-2 p-1 bg-slate-100/60 rounded-xl border border-slate-200/70">
-              <Button 
-                variant="ghost"
-                className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all rounded-lg font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                onClick={() => setIsManageOwnersOpen(true)}
-                title="Manage Owners"
-              >
-                <Users size={14} className="text-slate-500 shrink-0" />
-                <span className="hidden sm:inline">Manage Owners</span>
-                <span className="sm:hidden">Owners</span>
-              </Button>
-              <Button 
-                variant="ghost"
-                className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all rounded-lg font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
-                onClick={() => setIsManageBanksOpen(true)}
-                title="Manage Banks"
-              >
-                <Building2 size={14} className="text-slate-500 shrink-0" />
-                <span className="hidden sm:inline">Manage Banks</span>
-                <span className="sm:hidden">Banks</span>
-              </Button>
-            </div>
-
-            <div className="h-5 w-px bg-slate-200/80 mx-0.5 hidden sm:block shrink-0" />
-
+          <div className="flex items-center gap-2 shrink-0">
             {/* Data Management Stack */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Button 
-                className="h-9 px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 hover:border-blue-300 transition-all rounded-lg shadow-2xs font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
-                onClick={() => {
-                  setNewAccount(prev => ({
-                    ...prev,
-                    owner: prev.owner || (owners.length > 0 ? owners[0] : ''),
-                    bank_name: prev.bank_name || (banks.length > 0 ? banks[0] : '')
-                  }));
-                  setIsAddAccountOpen(true);
-                }}
-                title="Add Account"
-              >
-                <CreditCard size={15} className="text-blue-600 shrink-0" />
-                <span className="hidden sm:inline">Add Account</span>
-                <span className="sm:hidden">Account</span>
-              </Button>
-              <Button 
-                className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
-                onClick={() => setIsTransactionOpen(true)}
-                title="New Transaction"
-              >
-                <Plus size={16} className="shrink-0" />
-                <span className="hidden sm:inline">New Transaction</span>
-                <span className="sm:hidden">Transaction</span>
-              </Button>
-            </div>
+            <Button 
+              className="h-9 px-3 sm:px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 hover:border-blue-300 transition-all rounded-lg shadow-2xs font-semibold text-xs flex items-center gap-1.5 sm:gap-2 cursor-pointer active:scale-95"
+              onClick={() => {
+                setNewAccount(prev => ({
+                  ...prev,
+                  owner: prev.owner || (owners.length > 0 ? owners[0] : ''),
+                  bank_name: prev.bank_name || (banks.length > 0 ? banks[0] : '')
+                }));
+                setIsAddAccountOpen(true);
+              }}
+              title="Add Account"
+            >
+              <CreditCard size={15} className="text-blue-600 shrink-0" />
+              <span className="hidden sm:inline">Add Account</span>
+              <span className="sm:hidden">Account</span>
+            </Button>
+            <Button 
+              className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
+              onClick={() => setIsTransactionOpen(true)}
+              title="New Transaction"
+            >
+              <Plus size={16} className="shrink-0" />
+              <span className="hidden sm:inline">New Transaction</span>
+              <span className="sm:hidden">Transaction</span>
+            </Button>
           </div>
         </header>
 
