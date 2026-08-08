@@ -50,7 +50,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '1.10.7';
+const APP_VERSION = '2026.8.1';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1012,20 +1012,22 @@ export default function App() {
           <div className="flex items-center gap-2 lg:gap-3">
             <Button 
               variant="outline"
-              size="icon"
-              className="h-9 w-9 border-gray-200 text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded-lg shadow-sm"
+              className="h-9 px-3.5 border-gray-200 text-slate-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer"
               onClick={() => setIsAddAccountOpen(true)}
               title="Add Account"
             >
-              <CreditCard size={18} />
+              <CreditCard size={15} className="text-slate-500 shrink-0" />
+              <span className="hidden sm:inline">Add Account</span>
+              <span className="sm:hidden">Account</span>
             </Button>
             <Button 
-              size="icon"
-              className="h-9 w-9 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg"
+              className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
               onClick={() => setIsTransactionOpen(true)}
               title="New Transaction"
             >
-              <Plus size={18} />
+              <Plus size={16} className="shrink-0" />
+              <span className="hidden sm:inline">New Transaction</span>
+              <span className="sm:hidden">Transaction</span>
             </Button>
           </div>
         </header>

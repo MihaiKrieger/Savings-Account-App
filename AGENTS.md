@@ -255,8 +255,11 @@ Econosmishu implements an elegant, responsive design philosophy built to represe
 ## 7. Versioning & Operational Principles
 
 ### Versioning Rules
-- **Functional modifications or bug-fixes**: Increment the third block (Patch notation e.g., `1.10.x` ➔ `1.10.x+1`) inside `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` variable).
-- **Major visual or feature introductions**: Increment the secondary minor block (Minor notation e.g., `1.10.0` ➔ `1.11.0`).
+The application strictly follows **CalVer** (Calendar Versioning) using the format `YYYY.M.MICRO` (e.g. `2026.8.0`).
+- **Format**: `YYYY` = 4-digit Year (e.g., `2026`), `M` = Month without leading zero (e.g., `8` for August), `MICRO` = Release index for that month starting at `.0` for the first release of the month.
+- **First Release Indexing Rule**: The first update/release of any given calendar month resets the `MICRO` counter to `0` (e.g., `2026.8.0`).
+- **Subsequent Monthly Releases**: Each subsequent update within the same month increments the `MICRO` index by 1 (`2026.8.1`, `2026.8.2`, etc.).
+- **Synchronization**: Every version change must be updated concurrently in `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` constant).
 
 ### Production Environment Safety (Dockerfile & server.ts)
 - **CJS Bundle Compatibility**: To handle esbuild's bundling of `server.ts` into a standalone CommonJS `dist/server.cjs` file, runtime path resolutions are secured by fallback try-catch scopes to prevent invalid global exceptions for `import.meta.url`, `__filename`, and `__dirname`.

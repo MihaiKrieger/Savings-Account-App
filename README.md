@@ -86,6 +86,15 @@ The app uses a local SQLite database (`savings.db`).
 
 ---
 
+## 🏷 Versioning
+
+This project uses **CalVer** (Calendar Versioning) with the format `YYYY.M.MICRO`:
+- `YYYY`: Year (e.g. `2026`)
+- `M`: Month (e.g. `8` for August)
+- `MICRO`: Zero-indexed release counter for that month (starts at `.0` for the first release of the month).
+
+---
+
 ## 📄 License
 
 MIT License.
