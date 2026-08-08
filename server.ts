@@ -28,6 +28,164 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   // --- API Routes ---
 
+  // Owners
+  app.get('/api/owners', (req, res) => {
+    try {
+      db.exec(`
+        INSERT OR IGNORE INTO owners (name)
+        SELECT DISTINCT owner FROM accounts WHERE owner IS NOT NULL AND TRIM(owner) != '';
+      `);
+      const owners = db.prepare('SELECT * FROM owners ORDER BY name ASC').all();
+      res.json(owners);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch owners' });
+    }
+  });
+
+  app.post('/api/owners', (req, res) => {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Owner name is required' });
+    }
+    const trimmed = name.trim();
+    try {
+      const info = db.prepare('INSERT INTO owners (name) VALUES (?)').run(trimmed);
+      const newOwner = db.prepare('SELECT * FROM owners WHERE id = ?').get(info.lastInsertRowid);
+      res.status(201).json(newOwner);
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE')) {
+        return res.status(400).json({ error: `An owner named "${trimmed}" already exists` });
+      }
+      res.status(500).json({ error: 'Failed to create owner' });
+    }
+  });
+
+  app.put('/api/owners/:id', (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Owner name is required' });
+    }
+    const trimmed = name.trim();
+    try {
+      const updated = db.transaction(() => {
+        const current = db.prepare('SELECT name FROM owners WHERE id = ?').get(id) as { name: string } | undefined;
+        if (!current) {
+          throw new Error('Owner not found');
+        }
+        const oldName = current.name;
+        db.prepare('UPDATE owners SET name = ? WHERE id = ?').run(trimmed, id);
+        db.prepare('UPDATE accounts SET owner = ? WHERE owner = ?').run(trimmed, oldName);
+        return db.prepare('SELECT * FROM owners WHERE id = ?').get(id);
+      })();
+      res.json(updated);
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE')) {
+        return res.status(400).json({ error: `An owner named "${trimmed}" already exists` });
+      }
+      res.status(400).json({ error: error.message || 'Failed to update owner' });
+    }
+  });
+
+  app.delete('/api/owners/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+      const current = db.prepare('SELECT name FROM owners WHERE id = ?').get(id) as { name: string } | undefined;
+      if (!current) {
+        return res.status(404).json({ error: 'Owner not found' });
+      }
+      const accountCount = db.prepare('SELECT count(*) as count FROM accounts WHERE owner = ?').get(current.name) as { count: number };
+      if (accountCount.count > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete owner "${current.name}" because ${accountCount.count} account(s) are assigned to them.` 
+        });
+      }
+      db.prepare('DELETE FROM owners WHERE id = ?').run(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to delete owner' });
+    }
+  });
+
+  // Banks
+  app.get('/api/banks', (req, res) => {
+    try {
+      db.exec(`
+        INSERT OR IGNORE INTO banks (name)
+        SELECT DISTINCT bank_name FROM accounts WHERE bank_name IS NOT NULL AND TRIM(bank_name) != '';
+      `);
+      const banks = db.prepare('SELECT * FROM banks ORDER BY name ASC').all();
+      res.json(banks);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch banks' });
+    }
+  });
+
+  app.post('/api/banks', (req, res) => {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Bank name is required' });
+    }
+    const trimmed = name.trim();
+    try {
+      const info = db.prepare('INSERT INTO banks (name) VALUES (?)').run(trimmed);
+      const newBank = db.prepare('SELECT * FROM banks WHERE id = ?').get(info.lastInsertRowid);
+      res.status(201).json(newBank);
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE')) {
+        return res.status(400).json({ error: `A bank named "${trimmed}" already exists` });
+      }
+      res.status(500).json({ error: 'Failed to create bank' });
+    }
+  });
+
+  app.put('/api/banks/:id', (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Bank name is required' });
+    }
+    const trimmed = name.trim();
+    try {
+      const updated = db.transaction(() => {
+        const current = db.prepare('SELECT name FROM banks WHERE id = ?').get(id) as { name: string } | undefined;
+        if (!current) {
+          throw new Error('Bank not found');
+        }
+        const oldName = current.name;
+        db.prepare('UPDATE banks SET name = ? WHERE id = ?').run(trimmed, id);
+        db.prepare('UPDATE accounts SET bank_name = ? WHERE bank_name = ?').run(trimmed, oldName);
+        return db.prepare('SELECT * FROM banks WHERE id = ?').get(id);
+      })();
+      res.json(updated);
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE')) {
+        return res.status(400).json({ error: `A bank named "${trimmed}" already exists` });
+      }
+      res.status(400).json({ error: error.message || 'Failed to update bank' });
+    }
+  });
+
+  app.delete('/api/banks/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+      const current = db.prepare('SELECT name FROM banks WHERE id = ?').get(id) as { name: string } | undefined;
+      if (!current) {
+        return res.status(404).json({ error: 'Bank not found' });
+      }
+      const accountCount = db.prepare('SELECT count(*) as count FROM accounts WHERE bank_name = ?').get(current.name) as { count: number };
+      if (accountCount.count > 0) {
+        return res.status(400).json({ 
+          error: `Cannot delete bank "${current.name}" because ${accountCount.count} account(s) are assigned to it.` 
+        });
+      }
+      db.prepare('DELETE FROM banks WHERE id = ?').run(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to delete bank' });
+    }
+  });
+
   // Accounts
   app.get('/api/accounts', (req, res) => {
     try {

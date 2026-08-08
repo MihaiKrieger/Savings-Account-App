@@ -33,6 +33,27 @@ db.exec(`
     due_date TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS owners (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS banks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Populate owners and banks tables with any existing account owners and banks
+db.exec(`
+  INSERT OR IGNORE INTO owners (name)
+  SELECT DISTINCT owner FROM accounts WHERE owner IS NOT NULL AND TRIM(owner) != '';
+
+  INSERT OR IGNORE INTO banks (name)
+  SELECT DISTINCT bank_name FROM accounts WHERE bank_name IS NOT NULL AND TRIM(bank_name) != '';
 `);
 
 // Migration for existing tables

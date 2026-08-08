@@ -21,7 +21,11 @@ import {
   ArrowRight,
   Menu,
   X,
-  Radar
+  Radar,
+  Users,
+  UserPlus,
+  UserCheck,
+  UserCog
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast, Toaster } from 'sonner';
@@ -35,7 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-import { Account, Transaction, Currency, AnalyticsData } from './types';
+import { Account, Transaction, Currency, AnalyticsData, Owner, Bank } from './types';
 import { 
   AreaChart,
   Area,
@@ -50,7 +54,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '2026.8.1';
+const APP_VERSION = '2026.8.2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -142,12 +146,164 @@ export default function App() {
   }, [searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder]);
 
   // Form states
+  const [allOwners, setAllOwners] = useState<Owner[]>([]);
+  const [isManageOwnersOpen, setIsManageOwnersOpen] = useState(false);
+  const [newOwnerName, setNewOwnerName] = useState('');
+  const [editingOwnerId, setEditingOwnerId] = useState<number | null>(null);
+  const [editingOwnerName, setEditingOwnerName] = useState('');
+
+  const [allBanks, setAllBanks] = useState<Bank[]>([]);
+  const [isManageBanksOpen, setIsManageBanksOpen] = useState(false);
+  const [newBankName, setNewBankName] = useState('');
+  const [editingBankId, setEditingBankId] = useState<number | null>(null);
+  const [editingBankName, setEditingBankName] = useState('');
+
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
   const [isTransactionOpen, setIsTransactionOpen] = useState(false);
   const [isEditAccountOpen, setIsEditAccountOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+
+  const handleCreateBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBankName.trim()) {
+      toast.error('Bank name cannot be empty');
+      return;
+    }
+    try {
+      const res = await fetch('/api/banks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newBankName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Bank "${data.name}" created`);
+        setNewBankName('');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to create bank');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const handleEditBank = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBankId || !editingBankName.trim()) {
+      toast.error('Bank name cannot be empty');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/banks/${editingBankId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editingBankName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Bank updated successfully');
+        setEditingBankId(null);
+        setEditingBankName('');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to update bank');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const handleDeleteBank = async (id: number, name: string, accountCount: number) => {
+    if (accountCount > 0) {
+      toast.error(`Cannot delete "${name}" because ${accountCount} account(s) are assigned to it.`);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/banks/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Bank "${name}" deleted`);
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to delete bank');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const handleCreateOwner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOwnerName.trim()) {
+      toast.error('Owner name cannot be empty');
+      return;
+    }
+    try {
+      const res = await fetch('/api/owners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newOwnerName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Owner "${data.name}" created`);
+        setNewOwnerName('');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to create owner');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const handleEditOwner = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOwnerId || !editingOwnerName.trim()) {
+      toast.error('Owner name cannot be empty');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/owners/${editingOwnerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editingOwnerName.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Owner updated successfully');
+        setEditingOwnerId(null);
+        setEditingOwnerName('');
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to update owner');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
+
+  const handleDeleteOwner = async (id: number, name: string, accountCount: number) => {
+    if (accountCount > 0) {
+      toast.error(`Cannot delete "${name}" because ${accountCount} account(s) are assigned to them.`);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/owners/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Owner "${name}" deleted`);
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to delete owner');
+      }
+    } catch (error) {
+      toast.error('Connection error');
+    }
+  };
   
   const [newAccount, setNewAccount] = useState({
     owner: '',
@@ -220,19 +376,25 @@ export default function App() {
 
   const fetchData = async () => {
     try {
-      const [accRes, txRes, anaRes] = await Promise.all([
+      const [accRes, txRes, anaRes, ownRes, bankRes] = await Promise.all([
         fetch('/api/accounts'),
         fetch('/api/transactions'),
-        fetch('/api/analytics')
+        fetch('/api/analytics'),
+        fetch('/api/owners'),
+        fetch('/api/banks')
       ]);
-      const [accData, txData, anaData] = await Promise.all([
+      const [accData, txData, anaData, ownData, bankData] = await Promise.all([
         accRes.json(),
         txRes.json(),
-        anaRes.json()
+        anaRes.json(),
+        ownRes.json(),
+        bankRes.json()
       ]);
       setAccounts(accData);
       setTransactions(txData);
       setAnalytics(anaData);
+      setAllOwners(ownData);
+      setAllBanks(bankData);
     } catch (error) {
       toast.error('Failed to connect to server');
     } finally {
@@ -685,13 +847,19 @@ export default function App() {
       }, {} as Record<string, number>)
   , [filteredAccountsForStats]);
 
-  const owners = React.useMemo(() => 
-    Array.from(new Set(accounts.map(a => a.owner))).sort() as string[]
-  , [accounts]);
+  const owners = React.useMemo(() => {
+    const nameSet = new Set<string>();
+    allOwners.forEach(o => nameSet.add(o.name));
+    accounts.forEach(a => nameSet.add(a.owner));
+    return Array.from(nameSet).filter(Boolean).sort() as string[];
+  }, [allOwners, accounts]);
 
-  const banks = React.useMemo(() => 
-    Array.from(new Set(accounts.map(a => a.bank_name))).sort() as string[]
-  , [accounts]);
+  const banks = React.useMemo(() => {
+    const nameSet = new Set<string>();
+    allBanks.forEach(b => nameSet.add(b.name));
+    accounts.forEach(a => nameSet.add(a.bank_name));
+    return Array.from(nameSet).filter(Boolean).sort() as string[];
+  }, [allBanks, accounts]);
 
   const dueSoonAccounts = React.useMemo(() => {
     return accounts
@@ -1009,26 +1177,61 @@ export default function App() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-2 lg:gap-3">
-            <Button 
-              variant="outline"
-              className="h-9 px-3.5 border-gray-200 text-slate-700 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer"
-              onClick={() => setIsAddAccountOpen(true)}
-              title="Add Account"
-            >
-              <CreditCard size={15} className="text-slate-500 shrink-0" />
-              <span className="hidden sm:inline">Add Account</span>
-              <span className="sm:hidden">Account</span>
-            </Button>
-            <Button 
-              className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
-              onClick={() => setIsTransactionOpen(true)}
-              title="New Transaction"
-            >
-              <Plus size={16} className="shrink-0" />
-              <span className="hidden sm:inline">New Transaction</span>
-              <span className="sm:hidden">Transaction</span>
-            </Button>
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Settings Stack */}
+            <div className="flex items-center gap-1.5 sm:gap-2 p-1 bg-slate-100/60 rounded-xl border border-slate-200/70">
+              <Button 
+                variant="ghost"
+                className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all rounded-lg font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                onClick={() => setIsManageOwnersOpen(true)}
+                title="Manage Owners"
+              >
+                <Users size={14} className="text-slate-500 shrink-0" />
+                <span className="hidden sm:inline">Manage Owners</span>
+                <span className="sm:hidden">Owners</span>
+              </Button>
+              <Button 
+                variant="ghost"
+                className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-white/80 transition-all rounded-lg font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                onClick={() => setIsManageBanksOpen(true)}
+                title="Manage Banks"
+              >
+                <Building2 size={14} className="text-slate-500 shrink-0" />
+                <span className="hidden sm:inline">Manage Banks</span>
+                <span className="sm:hidden">Banks</span>
+              </Button>
+            </div>
+
+            <div className="h-5 w-px bg-slate-200/80 mx-0.5 hidden sm:block shrink-0" />
+
+            {/* Data Management Stack */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button 
+                className="h-9 px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 hover:border-blue-300 transition-all rounded-lg shadow-2xs font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                onClick={() => {
+                  setNewAccount(prev => ({
+                    ...prev,
+                    owner: prev.owner || (owners.length > 0 ? owners[0] : ''),
+                    bank_name: prev.bank_name || (banks.length > 0 ? banks[0] : '')
+                  }));
+                  setIsAddAccountOpen(true);
+                }}
+                title="Add Account"
+              >
+                <CreditCard size={15} className="text-blue-600 shrink-0" />
+                <span className="hidden sm:inline">Add Account</span>
+                <span className="sm:hidden">Account</span>
+              </Button>
+              <Button 
+                className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white transition-all rounded-lg shadow-sm font-semibold text-xs flex items-center gap-2 cursor-pointer active:scale-95"
+                onClick={() => setIsTransactionOpen(true)}
+                title="New Transaction"
+              >
+                <Plus size={16} className="shrink-0" />
+                <span className="hidden sm:inline">New Transaction</span>
+                <span className="sm:hidden">Transaction</span>
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -2566,27 +2769,42 @@ export default function App() {
           <form onSubmit={handleAddAccount} className="space-y-4 mt-2">
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Owner Name</Label>
-                <Input 
-                  required 
-                  className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium" 
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Holder</Label>
+                <Select 
                   value={newAccount.owner} 
-                  onChange={e => setNewAccount({...newAccount, owner: e.target.value})} 
-                  placeholder="e.g. Elena, Mihai"
-                  list="owners-list"
-                />
+                  onValueChange={(v) => setNewAccount({...newAccount, owner: v})}
+                >
+                  <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium">
+                    <SelectValue placeholder="Select account holder" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {owners.map(ownerName => (
+                      <SelectItem key={ownerName} value={ownerName} label={ownerName}>
+                        {ownerName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Bank Name</Label>
-                  <Input 
-                    required 
-                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium" 
+                  <Select 
                     value={newAccount.bank_name} 
-                    onChange={e => setNewAccount({...newAccount, bank_name: e.target.value})} 
-                    placeholder="e.g. BT, ING, Revolut" 
-                  />
+                    onValueChange={(v) => setNewAccount({...newAccount, bank_name: v})}
+                  >
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium">
+                      <SelectValue placeholder="Select bank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banks.map(bankName => (
+                        <SelectItem key={bankName} value={bankName} label={bankName}>
+                          {bankName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Nickname</Label>
@@ -3108,25 +3326,42 @@ export default function App() {
             <form onSubmit={handleEditAccount} className="space-y-4 mt-2">
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Owner Name</Label>
-                  <Input 
-                    required 
-                    className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Holder</Label>
+                  <Select 
                     value={editingAccount.owner} 
-                    onChange={e => setEditingAccount({...editingAccount, owner: e.target.value})}
-                    list="owners-list"
-                  />
+                    onValueChange={(v) => setEditingAccount({...editingAccount, owner: v})}
+                  >
+                    <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium">
+                      <SelectValue placeholder="Select account holder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {owners.map(ownerName => (
+                        <SelectItem key={ownerName} value={ownerName} label={ownerName}>
+                          {ownerName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Bank Name</Label>
-                    <Input 
-                      required 
-                      className="rounded-lg bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 transition-all font-medium"
+                    <Select 
                       value={editingAccount.bank_name} 
-                      onChange={e => setEditingAccount({...editingAccount, bank_name: e.target.value})} 
-                    />
+                      onValueChange={(v) => setEditingAccount({...editingAccount, bank_name: v})}
+                    >
+                      <SelectTrigger className="w-full bg-white border-slate-200 text-slate-800 text-sm h-10 focus:ring-2 focus:ring-blue-100 rounded-lg shadow-sm transition-all font-medium">
+                        <SelectValue placeholder="Select bank" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {banks.map(bankName => (
+                          <SelectItem key={bankName} value={bankName} label={bankName}>
+                            {bankName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Account Nickname</Label>
@@ -3201,11 +3436,269 @@ export default function App() {
         </DialogContent>
       </Dialog>
       
-      <datalist id="owners-list">
-        {owners.map(owner => (
-          <option key={owner} value={owner} />
-        ))}
-      </datalist>
+      {/* Manage Owners Dialog */}
+      <Dialog open={isManageOwnersOpen} onOpenChange={setIsManageOwnersOpen}>
+        <DialogContent className="sm:max-w-[480px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <Users className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">Manage Owners</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Create, Edit, and Delete Account Holders</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            {/* Create Owner Form */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-100 rounded-xl space-y-2">
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider block flex items-center gap-1.5">
+                <UserPlus size={14} className="text-blue-600" /> Create Owner
+              </Label>
+              <form onSubmit={handleCreateOwner} className="flex gap-2">
+                <Input 
+                  type="text" 
+                  placeholder="Enter new owner name..." 
+                  value={newOwnerName} 
+                  onChange={e => setNewOwnerName(e.target.value)} 
+                  className="flex-1 bg-white border-slate-200 text-sm h-9 rounded-lg focus:ring-2 focus:ring-blue-100 font-medium"
+                />
+                <Button 
+                  type="submit" 
+                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shrink-0 cursor-pointer shadow-xs"
+                >
+                  Create
+                </Button>
+              </form>
+            </div>
+
+            {/* Existing Owners List */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Existing Owners ({allOwners.length})
+                </span>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                {allOwners.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                    No owners found. Add one above!
+                  </div>
+                ) : (
+                  allOwners.map(owner => {
+                    const accountCount = accounts.filter(a => a.owner === owner.name).length;
+                    const isEditing = editingOwnerId === owner.id;
+
+                    return (
+                      <div key={owner.id} className="flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl shadow-xs transition-all hover:border-slate-300">
+                        {isEditing ? (
+                          <form onSubmit={handleEditOwner} className="flex-1 flex items-center gap-2 mr-2">
+                            <Input 
+                              type="text" 
+                              value={editingOwnerName} 
+                              onChange={e => setEditingOwnerName(e.target.value)} 
+                              className="flex-1 h-8 text-xs bg-white border-blue-300 focus:ring-1 focus:ring-blue-500 rounded-md font-medium"
+                              autoFocus
+                            />
+                            <Button type="submit" size="sm" className="h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-md cursor-pointer">
+                              Save
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingOwnerId(null); setEditingOwnerName(''); }} className="h-8 px-2 text-slate-500 text-[11px] rounded-md cursor-pointer">
+                              Cancel
+                            </Button>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                                {owner.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-semibold text-slate-800 text-xs block truncate">{owner.name}</span>
+                                <span className="text-[10px] text-slate-400 block font-medium">
+                                  {accountCount} {accountCount === 1 ? 'account' : 'accounts'} assigned
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingOwnerId(owner.id);
+                                  setEditingOwnerName(owner.name);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Owner"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOwner(owner.id, owner.name, accountCount)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Owner"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6 pt-2 border-t border-slate-100">
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-9 transition-colors font-medium" 
+              onClick={() => setIsManageOwnersOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Banks Dialog */}
+      <Dialog open={isManageBanksOpen} onOpenChange={setIsManageBanksOpen}>
+        <DialogContent className="sm:max-w-[480px] p-6 rounded-xl overflow-hidden">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <DialogTitle className="text-slate-900 font-semibold text-base leading-tight">Manage Banks</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 uppercase tracking-wider font-semibold">Create, Edit, and Delete Financial Institutions</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            {/* Create Bank Form */}
+            <div className="p-3.5 bg-slate-50/80 border border-slate-100 rounded-xl space-y-2">
+              <Label className="text-xs font-bold text-slate-700 uppercase tracking-wider block flex items-center gap-1.5">
+                <Building2 size={14} className="text-blue-600" /> Create Bank
+              </Label>
+              <form onSubmit={handleCreateBank} className="flex gap-2">
+                <Input 
+                  type="text" 
+                  placeholder="Enter new bank name..." 
+                  value={newBankName} 
+                  onChange={e => setNewBankName(e.target.value)} 
+                  className="flex-1 bg-white border-slate-200 text-sm h-9 rounded-lg focus:ring-2 focus:ring-blue-100 font-medium"
+                />
+                <Button 
+                  type="submit" 
+                  className="h-9 px-3.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shrink-0 cursor-pointer shadow-xs"
+                >
+                  Create
+                </Button>
+              </form>
+            </div>
+
+            {/* Existing Banks List */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Existing Banks ({allBanks.length})
+                </span>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                {allBanks.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                    No banks found. Add one above!
+                  </div>
+                ) : (
+                  allBanks.map(bank => {
+                    const accountCount = accounts.filter(a => a.bank_name === bank.name).length;
+                    const isEditing = editingBankId === bank.id;
+
+                    return (
+                      <div key={bank.id} className="flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl shadow-xs transition-all hover:border-slate-300">
+                        {isEditing ? (
+                          <form onSubmit={handleEditBank} className="flex-1 flex items-center gap-2 mr-2">
+                            <Input 
+                              type="text" 
+                              value={editingBankName} 
+                              onChange={e => setEditingBankName(e.target.value)} 
+                              className="flex-1 h-8 text-xs bg-white border-blue-300 focus:ring-1 focus:ring-blue-500 rounded-md font-medium"
+                              autoFocus
+                            />
+                            <Button type="submit" size="sm" className="h-8 px-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-md cursor-pointer">
+                              Save
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingBankId(null); setEditingBankName(''); }} className="h-8 px-2 text-slate-500 text-[11px] rounded-md cursor-pointer">
+                              Cancel
+                            </Button>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+                                {bank.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-semibold text-slate-800 text-xs block truncate">{bank.name}</span>
+                                <span className="text-[10px] text-slate-400 block font-medium">
+                                  {accountCount} {accountCount === 1 ? 'account' : 'accounts'} assigned
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingBankId(bank.id);
+                                  setEditingBankName(bank.name);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                title="Edit Bank"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBank(bank.id, bank.name, accountCount)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete Bank"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6 pt-2 border-t border-slate-100">
+            <Button 
+              type="button"
+              variant="outline" 
+              className="w-full rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer text-xs h-9 transition-colors font-medium" 
+              onClick={() => setIsManageBanksOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

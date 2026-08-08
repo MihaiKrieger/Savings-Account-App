@@ -1,5 +1,17 @@
 export type Currency = 'RON' | 'EUR';
 
+export interface Owner {
+  id: number;
+  name: string;
+  created_at?: string;
+}
+
+export interface Bank {
+  id: number;
+  name: string;
+  created_at?: string;
+}
+
 export interface Account {
   id: number;
   owner: string;

@@ -6,7 +6,8 @@
 
 ## 🌟 Key Features
 
-- **Multi-Account & Multi-Currency Management**: Manage savings accounts across different currencies (`RON` and `EUR`) and owners.
+- **Multi-Account & Multi-Currency Management**: Manage savings accounts across different currencies (`RON` and `EUR`), account holders (owners), and financial institutions (banks).
+- **Owner & Bank Management**: Create, edit, and delete account holders (owners) and banking institutions with automatic account assignment counts and constraint validation.
 - **Initial Deposit Support**: Option to open accounts with an initial deposit transaction automatically recorded in the ledger.
 - **Account Filtering & Sorting**: Sort accounts by balance, owner, bank, currency, or due date. Filter by status (active vs. inactive) to preserve historical ledger records.
 - **Atomic Transactions**: Perform deposits, withdrawals, and same-currency transfers with instant ledger balance recalculation and atomic rollback protection.
@@ -83,6 +84,8 @@ The app uses a local SQLite database (`savings.db`).
 
 - `accounts`: Stores account details (`id`, `owner`, `bank_name`, `name`, `currency`, `initial_balance`, `current_balance`, `is_active`, `due_date`, `created_at`).
 - `transactions`: Stores ledger history (`id`, `account_id`, `from_account_id`, `to_account_id`, `type`, `amount`, `currency`, `description`, `date`).
+- `owners`: Stores account holders (`id`, `name`, `created_at`).
+- `banks`: Stores financial institutions (`id`, `name`, `created_at`).
 
 ---
 

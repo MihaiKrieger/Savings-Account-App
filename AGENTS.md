@@ -126,6 +126,24 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 ```
 
+### Table 3: `owners`
+```sql
+CREATE TABLE IF NOT EXISTS owners (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Table 4: `banks`
+```sql
+CREATE TABLE IF NOT EXISTS banks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ### Database Performance Optimization Indexes
 To ensure high-speed query operations during heavy transactional logging, analytics groupings, and JOIN operations, the database maintains the following indexes:
 ```sql
@@ -150,6 +168,34 @@ If the `accounts` table is initialized empty on container boot:
 ## 4. API Endpoints Specification
 
 Below are the operational backend API handles declared in `server.ts`. Every endpoint handles JSON payloads with proper response codes.
+
+### Owners Resource
+- **`GET /api/owners`**
+  - **Returns**: `200 OK` — `Owner[]` ordered alphabetically by `name`.
+- **`POST /api/owners`**
+  - **Payload**: `{ name: string }`
+  - **Returns**: `201 Created` — `Owner` record.
+- **`PUT /api/owners/:id`**
+  - **Payload**: `{ name: string }`
+  - **Action**: Updates owner name and cascades to matching `accounts.owner`.
+  - **Returns**: `200 OK` — Updated `Owner` record.
+- **`DELETE /api/owners/:id`**
+  - **Action**: Deletes owner if no active accounts are assigned to them.
+  - **Returns**: `200 OK` — `{ success: true }`.
+
+### Banks Resource
+- **`GET /api/banks`**
+  - **Returns**: `200 OK` — `Bank[]` ordered alphabetically by `name`.
+- **`POST /api/banks`**
+  - **Payload**: `{ name: string }`
+  - **Returns**: `201 Created` — `Bank` record.
+- **`PUT /api/banks/:id`**
+  - **Payload**: `{ name: string }`
+  - **Action**: Updates bank name and cascades to matching `accounts.bank_name`.
+  - **Returns**: `200 OK` — Updated `Bank` record.
+- **`DELETE /api/banks/:id`**
+  - **Action**: Deletes bank if no active accounts are assigned to it.
+  - **Returns**: `200 OK` — `{ success: true }`.
 
 ### Accounts Resource
 - **`GET /api/accounts`**
