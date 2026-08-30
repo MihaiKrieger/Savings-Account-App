@@ -54,7 +54,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '2026.8.3';
+const APP_VERSION = '2026.8.4';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -92,7 +92,7 @@ export default function App() {
   const [isRangeFilterOpen, setIsRangeFilterOpen] = useState(false);
   const [isChartReady, setIsChartReady] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<string>('all');
-  const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'RON' | 'EUR'>('all');
+  const [chartCurrencyFilter, setChartCurrencyFilter] = useState<'all' | 'TOTAL' | 'RON' | 'EUR'>('all');
   const [accountStatusFilter, setAccountStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isOwnerFilterOpen, setIsOwnerFilterOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -740,11 +740,14 @@ export default function App() {
        // No transactions ever, just show today
        const ronVal = Math.round(currentBalances.RON * 100) / 100;
        const eurVal = Math.round(currentBalances.EUR * 100) / 100;
+       const eurScaled = Math.round((eurVal / rateVal) * 100) / 100;
+       const totalRon = Math.round((ronVal + eurScaled) * 100) / 100;
        result.push({
          day: today,
          RON: ronVal,
          EUR: eurVal,
-         EUR_scaled: Math.round((eurVal / rateVal) * 100) / 100
+         EUR_scaled: eurScaled,
+         Total_RON: totalRon
        });
        return result;
     }
@@ -755,11 +758,14 @@ export default function App() {
       });
       const ronVal = Math.round(currentBalances.RON * 100) / 100;
       const eurVal = Math.round(currentBalances.EUR * 100) / 100;
+      const eurScaled = Math.round((eurVal / rateVal) * 100) / 100;
+      const totalRon = Math.round((ronVal + eurScaled) * 100) / 100;
       result.push({
         day,
         RON: ronVal,
         EUR: eurVal,
-        EUR_scaled: Math.round((eurVal / rateVal) * 100) / 100
+        EUR_scaled: eurScaled,
+        Total_RON: totalRon
       });
     });
 
@@ -804,11 +810,14 @@ export default function App() {
         const shouldInclude = hasChangesInMonth || isCustomRange;
         
         if (shouldInclude) {
+          const eurScaled = Math.round((lastKnownEur / rateVal) * 100) / 100;
+          const totalRon = Math.round((lastKnownRon + eurScaled) * 100) / 100;
           monthlyResult.push({
             day: repDate,
             RON: lastKnownRon,
             EUR: lastKnownEur,
-            EUR_scaled: Math.round((lastKnownEur / rateVal) * 100) / 100
+            EUR_scaled: eurScaled,
+            Total_RON: totalRon
           });
         }
         
@@ -1518,6 +1527,12 @@ export default function App() {
                               ALL
                             </button>
                             <button 
+                              onClick={() => setChartCurrencyFilter('TOTAL')}
+                              className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${chartCurrencyFilter === 'TOTAL' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                              TOTAL
+                            </button>
+                            <button 
                               onClick={() => setChartCurrencyFilter('RON')}
                               className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${chartCurrencyFilter === 'RON' ? 'bg-[#F97316] text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
                             >
@@ -1536,6 +1551,10 @@ export default function App() {
                             <ResponsiveContainer width="100%" height="100%" debounce={250}>
                               <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                 <defs>
+                                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.15}/>
+                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.0}/>
+                                  </linearGradient>
                                   <linearGradient id="colorRon" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#F97316" stopOpacity={0.15}/>
                                     <stop offset="95%" stopColor="#F97316" stopOpacity={0.0}/>
@@ -1571,6 +1590,9 @@ export default function App() {
                                 />
                                 <Tooltip 
                                   formatter={(value: any, name: string, props: any) => {
+                                    if (name === 'Total (in RON)' || name === 'Total (RON)' || name === 'Total_RON') {
+                                      return [formatCurrency(value ?? 0, 'RON'), 'Total (in RON)'];
+                                    }
                                     if (name === 'EUR') {
                                       const rawEur = props.payload?.EUR;
                                       return [
@@ -1608,10 +1630,24 @@ export default function App() {
                                   iconSize={8}
                                   wrapperStyle={{ fontSize: '11px', fontWeight: 500, paddingBottom: '20px' }}
                                 />
+                                {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'TOTAL') && (
+                                  <Area 
+                                    type="monotone" 
+                                    dataKey="Total_RON" 
+                                    name="Total (in RON)"
+                                    stroke="#10B981" 
+                                    strokeWidth={2.5} 
+                                    fillOpacity={1}
+                                    fill="url(#colorTotal)"
+                                    dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} 
+                                    activeDot={{ r: 6 }} 
+                                  />
+                                )}
                                 {(chartCurrencyFilter === 'all' || chartCurrencyFilter === 'RON') && (
                                   <Area 
                                     type="monotone" 
                                     dataKey="RON" 
+                                    name="RON"
                                     stroke="#F97316" 
                                     strokeWidth={2.5} 
                                     fillOpacity={1}

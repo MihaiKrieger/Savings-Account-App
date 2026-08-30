@@ -279,7 +279,8 @@ To ensure seamless interactions with high transaction volumes:
 - **Portfolio Evolution Line & Bar Coordinates**:
     1. Instantiates baseline balance records for all registered accounts (`initial_balance` acting as day-0).
     2. Iterates chronologically through analytics records fetched from `/api/analytics`.
-    3. Reconstructs day-by-day balance trajectories across owners and currencies to feed into the SVG Responsive Recharts grids.
+    3. Reconstructs day-by-day balance trajectories across owners, individual currencies (`RON`, `EUR`), and aggregate total holdings (`Total_RON`) to feed into the SVG Responsive Recharts grids.
+- **Aggregate Total Valuation in RON**: Combines individual RON balances and EUR balances converted to RON (`EUR_scaled`) to produce a synchronized aggregate balance line (`Total_RON`), preventing graph skew when transferring/exchanging funds between currencies.
 - **Visual Scale Proportioning (EUR to RON Baseline)**: Since EUR and RON balances have vastly different orders of magnitude, the graph converts EUR values to a RON baseline for display purposes (`EUR_scaled`) using the live API stream rate (or a `0.201` fallback). Tooltips are customized to render the original EUR balance while providing the RON-scaled display equivalent in parentheses.
 - **Empty Timeline Curation**: To prevent visual clutter and long "flat-line" periods where no transaction or balance changes occurs, any monthly segment in the timeline without recorded transaction changes is filtered out dynamically under the "All Years" view.
 - **Unified Charts**: The "Portfolio Evolution" card displays historical holdings, using custom cursor tools, grid patterns, soft colors, and a clean configuration.
