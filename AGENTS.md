@@ -25,6 +25,8 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 ├─ AGENTS.md                 # [THIS FILE] Absolute master context specification for AI agents
 ├─ Dockerfile                # Multi-stage Docker build for production deployments (using Node 22-alpine)
 ├─ README.md                 # General project documentation and user overview
+├─ components/               # Base UI primitives (Button, Card, Dialog, Input, Table, Sonner, etc.)
+│  └─ ui/
 ├─ db.ts                     # Database driver, SQLite table schema definitions, and index setups
 ├─ index.html                # Vite HTML primary mount index
 ├─ package.json              # Node dependencies, scripts, and baseline version properties
@@ -33,10 +35,35 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 ├─ tsconfig.json             # TypeScript structural compiler options
 ├─ vite.config.ts            # Vite compiler configuration utilizing @tailwindcss/vite plugins
 └─ src/
-   ├─ App.tsx                # Master Frontend UI shell, dashboard views, form models, and charts
+   ├─ App.tsx                # Master Frontend UI shell coordinating global state, API queries, and modal controllers
    ├─ index.css              # Global styles entrypoint loading Tailwind imports
    ├─ main.tsx               # Frontend client bootstrapping entrypoint
-   └─ types.ts               # Core shared TypeScript interface definitions
+   ├─ types.ts               # Core shared TypeScript interface definitions
+   ├─ utils/
+   │  └─ formatters.ts       # Shared currency, date, and mathematical formatting helpers
+   └─ components/
+      ├─ layout/             # Top-level shell layouts
+      │  ├─ Header.tsx              # Top bar, quick actions, and mobile drawer trigger
+      │  ├─ Sidebar.tsx             # Main navigation sidebar and owner/bank management triggers
+      │  └─ PrivacyWelcomeModal.tsx # First-time user onboarding modal
+      ├─ views/              # Primary tab views
+      │  ├─ DashboardView.tsx       # Financial overview, interactive Recharts graphs, and summary cards
+      │  ├─ AccountsView.tsx        # Accounts directory (desktop table & mobile cards) with sorting and filters
+      │  └─ TransactionsView.tsx    # Paginated ledger with date presets, filters, search, and delete actions
+      ├─ dashboard/          # Specialized Dashboard widgets & cards
+      │  ├─ SummaryCards.tsx        # Total assets (RON, EUR, and aggregate portfolio valuation)
+      │  ├─ PortfolioChartCard.tsx  # Recharts portfolio evolution (Area/Line with currency baseline scaling)
+      │  ├─ RecentActivityCard.tsx  # Quick transaction log with badges
+      │  ├─ CurrencyBalancesCard.tsx# Breakdown of liquid and invested assets by currency
+      │  ├─ MaturingDepositsCard.tsx# Near-term term deposit and savings maturity countdown alerts
+      │  └─ OwnerPulseCard.tsx      # Asset distribution and account ownership metrics
+      └─ modals/             # Action dialogs and forms
+         ├─ AddAccountModal.tsx     # Account creation modal with initial balance logging
+         ├─ EditAccountModal.tsx    # Account editing modal (status, bank, maturity date, description)
+         ├─ DeleteAccountModal.tsx  # Destructive account deletion confirmation dialog
+         ├─ AddTransactionModal.tsx # Transaction logging modal (deposit, withdrawal, internal transfer)
+         ├─ ManageOwnersModal.tsx   # Owner entity management modal (create, edit, cascade delete)
+         └─ ManageBanksModal.tsx    # Bank institution entity management modal (create, edit, cascade delete)
 ```
 
 ---
@@ -257,9 +284,59 @@ Below are the operational backend API handles declared in `server.ts`. Every end
 
 ---
 
-## 5. Frontend & UI Engine Implementation Details (`src/App.tsx`)
+## 5. Frontend & UI Engine Implementation Details
 
-Core state variables inside `src/App.tsx` coordinate data streams fetched on startup.
+The frontend follows a clean, decoupled component architecture centered around a slim shell (`src/App.tsx`) delegating to dedicated view modules, specialized dashboard widgets, and focused action modals.
+
+### Modular Directory Breakdown
+
+#### 1. Application Shell (`src/App.tsx`)
+`App.tsx` coordinates top-level state management, API synchronization, responsive layout transitions, and modal dialog lifecycles:
+- **State Management**: Holds live lists of `accounts`, `transactions`, `analyticsData`, catalog entities (`owners`, `banks`), active navigation tab, global filter criteria, and modal visibility states.
+- **REST Synchronization**: Provides atomic CRUD handler callbacks (`handleAddAccount`, `handleEditAccount`, `deleteAccount`, `handleAddTransaction`, `deleteTransaction`, `handleCreateOwner`, `handleEditOwner`, `handleDeleteOwner`, `handleCreateBank`, `handleEditBank`, `handleDeleteBank`) with Sonner toast feedback and optimistic error catching.
+- **View Routing**: Renders active view panels (`DashboardView`, `AccountsView`, `TransactionsView`) within `AnimatePresence` layout transitions.
+
+#### 2. View Modules (`src/components/views/`)
+- **`DashboardView.tsx`**:
+  - The primary financial control center.
+  - Houses the top control bar with range filters, year selector (`All` vs specific years), month boundaries (`from` / `to`), owner toggles, and financial institution selectors.
+  - Embeds key analytics widgets: `SummaryCards`, `PortfolioChartCard`, `RecentActivityCard`, `CurrencyBalancesCard`, `MaturingDepositsCard`, and `OwnerPulseCard`.
+- **`AccountsView.tsx`**:
+  - Comprehensive accounts management interface.
+  - Dual presentation modes: Responsive desktop tabular directory and mobile card layout.
+  - Advanced filtering and sorting: Filter by account status (`all`, `active`, `inactive/settled`), currency (`RON`, `EUR`), owner, or bank; sort by balance, account name, bank, owner, currency, or maturity due date.
+  - Action hooks: Triggers `onEditAccount` and `onDeleteAccount` modal flows directly from rows and cards.
+- **`TransactionsView.tsx`**:
+  - Full-scale financial transaction ledger.
+  - Incremental pagination via `visibleTxCount` ("Load More" button) to optimize DOM rendering under high transaction volumes.
+  - Multi-criterion filters: Date presets (`All time`, `Last 30 days`, `Last 90 days`, `This year`, or custom date pickers), transaction types (`DEPOSIT`, `WITHDRAWAL`, `TRANSFER`), currency, owner, bank, and search keywords.
+  - Safe transaction deletion with loading indicators and atomic rollback on error.
+
+#### 3. Dashboard Component Suite (`src/components/dashboard/`)
+- **`SummaryCards.tsx`**: Renders top-line summary stats: Total Holdings in RON (combining RON and EUR converted at baseline), Total EUR, and Active Account Counts with subtle trend indicators.
+- **`PortfolioChartCard.tsx`**: Interactive Recharts timeline visualization supporting both Area and Line modes, currency display toggles, custom cursor tooltips, and dynamic monthly segment compression.
+- **`RecentActivityCard.tsx`**: Compact chronological log displaying the latest transactions with custom iconography and color-coded amounts.
+- **`CurrencyBalancesCard.tsx`**: Breakdown comparing liquid cash reserves and invested assets per currency.
+- **`MaturingDepositsCard.tsx`**: Urgent alert list for term deposits maturing within 30, 60, or 90 days.
+- **`OwnerPulseCard.tsx`**: Ownership distribution metrics displaying relative financial shares among family members.
+
+#### 4. Action Modals Suite (`src/components/modals/`)
+- **`AddAccountModal.tsx`**: Creates accounts with name, owner, bank, currency (`RON`/`EUR`), initial balance, and optional maturity date.
+- **`EditAccountModal.tsx`**: Modifies existing account names, associated banks, owners, description notes, active status, and maturity dates.
+- **`DeleteAccountModal.tsx`**: Confirmation dialog warning users about non-zero ending balances and cascaded transaction deletions before execution.
+- **`AddTransactionModal.tsx`**: Logs `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER` actions, automatically checking account balance sufficiency and enforcing single-currency transfer constraints.
+- **`ManageOwnersModal.tsx`**: Entity manager for viewing, adding, renaming, and deleting account owners with account count safeguards.
+- **`ManageBanksModal.tsx`**: Entity manager for viewing, adding, renaming, and deleting financial institutions with account count safeguards.
+
+#### 5. Layout & Shell Components (`src/components/layout/`)
+- **`Header.tsx`**: Sticky top navigation bar containing branding, quick-action transaction/account buttons, search toggle, and mobile menu toggle.
+- **`Sidebar.tsx`**: Primary desktop side navigation supporting tab switching, owner filter shortcuts, and management dialog launchers.
+- **`PrivacyWelcomeModal.tsx`**: Onboarding dialog highlighting local-first privacy, client storage encryption, and zero cloud tracking.
+
+#### 6. Shared Helpers (`src/utils/formatters.ts`)
+- Contains pure helper utilities: `formatCurrency(amount, currency)`, `formatDate(dateString)`, `formatShortDate(dateString)`, and `getRelativeTime(dateString)`.
+
+---
 
 ### State Framework
 - `accounts`: Complete listing of retrieved portfolios.
@@ -309,10 +386,10 @@ Econosmishu implements an elegant, responsive design philosophy built to represe
 ## 7. Versioning & Operational Principles
 
 ### Versioning Rules
-The application strictly follows **CalVer** (Calendar Versioning) using the format `YYYY.M.MICRO` (e.g. `2026.8.0`).
-- **Format**: `YYYY` = 4-digit Year (e.g., `2026`), `M` = Month without leading zero (e.g., `8` for August), `MICRO` = Release index for that month starting at `.0` for the first release of the month.
-- **First Release Indexing Rule**: The first update/release of any given calendar month resets the `MICRO` counter to `0` (e.g., `2026.8.0`).
-- **Subsequent Monthly Releases**: Each subsequent update within the same month increments the `MICRO` index by 1 (`2026.8.1`, `2026.8.2`, etc.).
+The application strictly follows **CalVer** (Calendar Versioning) using the format `YYYY.M.MICRO` (e.g. `2026.9.0`).
+- **Format**: `YYYY` = 4-digit Year (e.g., `2026`), `M` = Month without leading zero (e.g., `9` for September), `MICRO` = Release index for that month starting at `.0` for the first release of the month.
+- **First Release Indexing Rule**: The first update/release of any given calendar month resets the `MICRO` counter to `0` (e.g., `2026.9.0`).
+- **Subsequent Monthly Releases**: Each subsequent update within the same month increments the `MICRO` index by 1 (`2026.9.1`, `2026.9.2`, etc.).
 - **Synchronization**: Every version change must be updated concurrently in `/package.json` **AND** inside `src/App.tsx` (`APP_VERSION` constant).
 
 ### Production Environment Safety (Dockerfile & server.ts)
