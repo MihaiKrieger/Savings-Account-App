@@ -154,14 +154,21 @@ CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
 ```
 
 ### Automatic Database Seeding Checks
-If the `accounts` table is initialized empty on container boot:
-1. Inserts five standard seed accounts:
-   - Primary Savings (RON / Owner: Mihai)
-   - Digital Wallet (RON / Owner: Mihai / Institution: Revolut)
-   - Family Savings (RON / Owner: Elena / Institution: ING Romania)
-   - EUR Holidays (EUR / Owner: Elena / Institution: Banca Transilvania)
-   - Global Investment (EUR / Owner: Mihai / Institution: Wise)
-2. Executes initial transaction logs (Deposits and Withdrawals) spanning back 25 days, automatically correcting and scaling database account balances dynamically using rounding algorithms.
+If the `accounts` table is initialized empty on container boot or first installation:
+1. Inserts seven diverse seed accounts showcasing all application capabilities:
+   - Primary Savings (RON / Owner: Mihai / Institution: Banca Transilvania / High-yield liquid fund)
+   - Digital Wallet & Vault (RON / Owner: Mihai / Institution: Revolut / Pocket stash & card buffers)
+   - Family Emergency Fund (RON / Owner: Elena / Institution: ING Romania / 6-month safety net)
+   - 12-Month Term Deposit (RON / Owner: Elena / Institution: BCR / Fixed 6.5% APY deposit with near-term maturity date)
+   - EUR Holidays & Travel (EUR / Owner: Elena / Institution: Banca Transilvania / Vacation fund with future maturity date)
+   - Global Investment Portfolio (EUR / Owner: Mihai / Institution: Wise / Index & ETF accumulation)
+   - Auto Upgrade Stash (Closed) (RON / Owner: Mihai / Institution: ING Romania / Inactive settled account demonstrating soft-deactivation filter)
+2. Automatically pre-populates `owners` and `banks` catalog tables.
+3. Executes realistic multi-month transaction logs (`DEPOSIT`, `WITHDRAWAL`, `TRANSFER`) spanning across 10 distinct months, showcasing:
+   - Historical multi-month chart evolution, individual currency curves, and aggregate total net worth (`Total in RON`).
+   - Multi-year and month range selector capabilities in the analytics and evolution modules.
+   - Internal transfer linking between accounts of the same currency (`from_account_id` and `to_account_id`).
+   - Dynamic account balance tracking with exact penny rounding precision (`ROUND(x, 2)`).
 
 ---
 

@@ -54,7 +54,7 @@ import {
 } from 'recharts';
 import { Info } from 'lucide-react';
 
-const APP_VERSION = '2026.8.4';
+const APP_VERSION = '2026.9.0';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -69,6 +69,12 @@ export default function App() {
   const [endMonth, setEndMonth] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [filterByMonths, setFilterByMonths] = useState<boolean>(false);
+
+  // Date range filter state for Ledger Activity
+  const [txStartDate, setTxStartDate] = useState<string>('');
+  const [txEndDate, setTxEndDate] = useState<string>('');
+  const [txDatePreset, setTxDatePreset] = useState<string>('all');
+  const [isTxDateFilterOpen, setIsTxDateFilterOpen] = useState(false);
 
   const { effectiveStartMonth, effectiveEndMonth } = React.useMemo(() => {
     if (selectedYear === 'all') {
@@ -143,7 +149,7 @@ export default function App() {
   // Reset transaction pagination when filters change
   useEffect(() => {
     setVisibleTxCount(50);
-  }, [searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder]);
+  }, [searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder, txStartDate, txEndDate, txDatePreset]);
 
   // Form states
   const [allOwners, setAllOwners] = useState<Owner[]>([]);
@@ -618,6 +624,113 @@ export default function App() {
     return `${formatMonthOnly(start)} - ${formatMonthOnly(end)} ${selectedYear}`;
   };
 
+  const applyTxDatePreset = (preset: string) => {
+    setTxDatePreset(preset);
+    const now = new Date();
+    
+    if (preset === 'all') {
+      setTxStartDate('');
+      setTxEndDate('');
+      return;
+    }
+    
+    if (preset === 'today') {
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      setTxStartDate(todayStr);
+      setTxEndDate(todayStr);
+      return;
+    }
+
+    if (preset === 'this_month') {
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const startStr = `${year}-${month}-01`;
+      const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+      const endStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+      setTxStartDate(startStr);
+      setTxEndDate(endStr);
+      return;
+    }
+
+    if (preset === 'last_month') {
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const year = prev.getFullYear();
+      const month = String(prev.getMonth() + 1).padStart(2, '0');
+      const startStr = `${year}-${month}-01`;
+      const lastDay = new Date(year, prev.getMonth() + 1, 0).getDate();
+      const endStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+      setTxStartDate(startStr);
+      setTxEndDate(endStr);
+      return;
+    }
+
+    if (preset === 'last_30_days') {
+      const past = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const startStr = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
+      const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      setTxStartDate(startStr);
+      setTxEndDate(endStr);
+      return;
+    }
+
+    if (preset === 'last_90_days') {
+      const past = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const startStr = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`;
+      const endStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      setTxStartDate(startStr);
+      setTxEndDate(endStr);
+      return;
+    }
+
+    if (preset === 'this_year') {
+      const year = now.getFullYear();
+      setTxStartDate(`${year}-01-01`);
+      setTxEndDate(`${year}-12-31`);
+      return;
+    }
+  };
+
+  const clearTxDateFilter = () => {
+    setTxDatePreset('all');
+    setTxStartDate('');
+    setTxEndDate('');
+  };
+
+  const isTxDateFilterActive = Boolean(txStartDate || txEndDate || (txDatePreset !== 'all' && txDatePreset !== 'custom'));
+
+  const getTxDateFilterLabel = () => {
+    if (!txStartDate && !txEndDate) {
+      return 'All Dates';
+    }
+
+    if (txDatePreset === 'today') return 'Today';
+    if (txDatePreset === 'this_month') return 'This Month';
+    if (txDatePreset === 'last_month') return 'Last Month';
+    if (txDatePreset === 'last_30_days') return 'Last 30 Days';
+    if (txDatePreset === 'last_90_days') return 'Last 90 Days';
+    if (txDatePreset === 'this_year') return 'This Year';
+
+    const formatLabelDate = (dateStr: string) => {
+      try {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        return dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      } catch {
+        return dateStr;
+      }
+    };
+
+    if (txStartDate && txEndDate) {
+      if (txStartDate === txEndDate) {
+        return formatLabelDate(txStartDate);
+      }
+      return `${formatLabelDate(txStartDate)} – ${formatLabelDate(txEndDate)}`;
+    }
+    if (txStartDate) return `From ${formatLabelDate(txStartDate)}`;
+    if (txEndDate) return `Until ${formatLabelDate(txEndDate)}`;
+    return 'Date Range';
+  };
+
   const availableMonths = React.useMemo(() => {
     if (analytics.length === 0) {
       const today = new Date();
@@ -1009,6 +1122,21 @@ export default function App() {
           if (!accBankMatch && !targetBankMatch) return false;
         }
 
+        // Date range filter
+        if (txStartDate) {
+          const [sy, sm, sd] = txStartDate.split('-').map(Number);
+          const startLimit = new Date(sy, sm - 1, sd, 0, 0, 0, 0).getTime();
+          const txTime = new Date(tx.date).getTime();
+          if (txTime < startLimit) return false;
+        }
+
+        if (txEndDate) {
+          const [ey, em, ed] = txEndDate.split('-').map(Number);
+          const endLimit = new Date(ey, em - 1, ed, 23, 59, 59, 999).getTime();
+          const txTime = new Date(tx.date).getTime();
+          if (txTime > endLimit) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
@@ -1017,7 +1145,7 @@ export default function App() {
         if (txSortOrder === 'newest') return timeB - timeA;
         return timeA - timeB;
       });
-  }, [transactions, accountsMap, searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder]);
+  }, [transactions, accountsMap, searchQuery, txTypeFilter, selectedCurrency, selectedOwners, selectedBank, txSortOrder, txStartDate, txEndDate]);
 
   const visibleTransactions = React.useMemo(() => {
     return filteredTransactions.slice(0, visibleTxCount);
@@ -2400,6 +2528,136 @@ export default function App() {
                     <p className="text-gray-500 text-sm mt-1">Audit trail of all money movements across connected bank vaults.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    {/* Date Range Filter */}
+                    <div className="flex items-center gap-2 relative">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Date:</span>
+                      <div className="relative">
+                        <button 
+                          type="button"
+                          onClick={() => setIsTxDateFilterOpen(!isTxDateFilterOpen)}
+                          className={`flex items-center justify-between min-w-[130px] max-w-[200px] h-9 border shadow-2xs px-3 text-xs font-medium rounded-lg transition-colors cursor-pointer shrink-0 ${
+                            isTxDateFilterActive
+                              ? 'bg-blue-50/90 border-blue-300 text-blue-700 font-semibold'
+                              : 'bg-white border-gray-200 text-slate-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 truncate">
+                            <CalendarDays size={13} className={isTxDateFilterActive ? 'text-blue-600 shrink-0' : 'text-gray-400 shrink-0'} />
+                            <span className="truncate">{getTxDateFilterLabel()}</span>
+                          </div>
+                          <ChevronDown size={14} className={`text-gray-400 transition-transform ml-1.5 shrink-0 ${isTxDateFilterOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        {isTxDateFilterOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={() => setIsTxDateFilterOpen(false)}
+                            />
+                            <div className="absolute top-full left-0 mt-1.5 w-[310px] sm:w-[330px] bg-white border border-gray-100 rounded-xl shadow-xl z-50 p-4 space-y-3.5 animate-in fade-in zoom-in duration-100">
+                              <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarDays size={15} className="text-blue-600" />
+                                  <span className="text-xs font-bold text-slate-800">Filter by Date</span>
+                                </div>
+                                {isTxDateFilterActive && (
+                                  <button
+                                    type="button"
+                                    onClick={clearTxDateFilter}
+                                    className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Quick Presets</label>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                  {[
+                                    { id: 'all', label: 'All Time' },
+                                    { id: 'today', label: 'Today' },
+                                    { id: 'this_month', label: 'This Month' },
+                                    { id: 'last_month', label: 'Last Month' },
+                                    { id: 'last_30_days', label: 'Last 30d' },
+                                    { id: 'last_90_days', label: 'Last 90d' },
+                                    { id: 'this_year', label: 'This Year' }
+                                  ].map(p => (
+                                    <button
+                                      key={p.id}
+                                      type="button"
+                                      onClick={() => applyTxDatePreset(p.id)}
+                                      className={`px-2 py-1.5 text-[10px] font-bold rounded-md border transition-all cursor-pointer text-center truncate ${
+                                        txDatePreset === p.id && (p.id === 'all' ? !txStartDate && !txEndDate : true)
+                                          ? 'bg-blue-50 border-blue-300 text-blue-600 shadow-2xs'
+                                          : 'bg-gray-50/80 border-gray-200/70 text-gray-600 hover:bg-gray-100'
+                                      }`}
+                                    >
+                                      {p.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 pt-2 border-t border-gray-100">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Custom Range</label>
+                                  {(txStartDate || txEndDate) && (
+                                    <button
+                                      type="button"
+                                      onClick={clearTxDateFilter}
+                                      className="text-[9px] font-bold text-rose-500 hover:underline cursor-pointer"
+                                    >
+                                      Clear Dates
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <span className="text-[9px] font-semibold text-gray-500 block">From</span>
+                                    <input
+                                      type="date"
+                                      value={txStartDate}
+                                      onChange={(e) => {
+                                        setTxStartDate(e.target.value);
+                                        setTxDatePreset('custom');
+                                      }}
+                                      className="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none font-medium focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <span className="text-[9px] font-semibold text-gray-500 block">To</span>
+                                    <input
+                                      type="date"
+                                      value={txEndDate}
+                                      onChange={(e) => {
+                                        setTxEndDate(e.target.value);
+                                        setTxDatePreset('custom');
+                                      }}
+                                      className="w-full text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none font-medium focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all text-slate-800"
+                                    />
+                                  </div>
+                                </div>
+                                {txStartDate && txEndDate && txStartDate > txEndDate && (
+                                  <p className="text-[9px] text-red-500 font-semibold">
+                                    * Start date cannot be after end date.
+                                  </p>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setIsTxDateFilterOpen(false)}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs transition-colors shadow-2xs cursor-pointer"
+                              >
+                                Done
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Type:</span>
                       <Select value={txTypeFilter} onValueChange={(v: any) => setTxTypeFilter(v)}>
@@ -2516,6 +2774,106 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Active Filter Tags Bar */}
+                {(isTxDateFilterActive || txTypeFilter !== 'all' || selectedCurrency !== 'all' || selectedOwners.length > 0 || selectedBank !== 'all' || searchQuery) && (
+                  <div className="flex flex-wrap items-center gap-2 bg-blue-50/40 border border-blue-100 rounded-xl px-3.5 py-2">
+                    <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1 mr-1">
+                      <Filter size={11} className="text-blue-600" /> Filters:
+                    </span>
+
+                    {isTxDateFilterActive && (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-white text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                        <CalendarDays size={11} className="text-blue-500" />
+                        <span>{getTxDateFilterLabel()}</span>
+                        <button
+                          type="button"
+                          onClick={clearTxDateFilter}
+                          className="text-blue-400 hover:text-blue-700 cursor-pointer ml-0.5"
+                          title="Clear date filter"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+
+                    {txTypeFilter !== 'all' && (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-white text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                        <span>Type: {txTypeFilter}</span>
+                        <button
+                          type="button"
+                          onClick={() => setTxTypeFilter('all')}
+                          className="text-blue-400 hover:text-blue-700 cursor-pointer ml-0.5"
+                          title="Clear type filter"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+
+                    {selectedCurrency !== 'all' && (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-white text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                        <span>Currency: {selectedCurrency}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCurrency('all')}
+                          className="text-blue-400 hover:text-blue-700 cursor-pointer ml-0.5"
+                          title="Clear currency filter"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+
+                    {selectedOwners.length > 0 && (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-white text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                        <span>Owner: {selectedOwners.join(', ')}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOwners([])}
+                          className="text-blue-400 hover:text-blue-700 cursor-pointer ml-0.5"
+                          title="Clear owner filter"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+
+                    {selectedBank !== 'all' && (
+                      <span className="inline-flex items-center gap-1.5 text-xs bg-white text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                        <span>Bank: {selectedBank}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBank('all')}
+                          className="text-blue-400 hover:text-blue-700 cursor-pointer ml-0.5"
+                          title="Clear bank filter"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    )}
+
+                    <div className="ml-auto flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        Showing <strong className="text-slate-800 font-semibold">{filteredTransactions.length}</strong> of {transactions.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearTxDateFilter();
+                          setTxTypeFilter('all');
+                          setSelectedCurrency('all');
+                          setSelectedOwners([]);
+                          setSelectedBank('all');
+                          setSearchQuery('');
+                        }}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer ml-2"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   {/* Desktop Table View */}
                   <div className="hidden md:block bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden mb-8">
@@ -2532,7 +2890,32 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                          {visibleTransactions.map((tx) => {
+                          {visibleTransactions.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                                <History size={32} className="mx-auto text-gray-300 mb-2" />
+                                <p className="text-sm font-semibold text-gray-600">No transactions match your filter criteria</p>
+                                <p className="text-xs text-gray-400 mt-1">Try adjusting the date range or clearing active filters</p>
+                                {(isTxDateFilterActive || txTypeFilter !== 'all' || selectedCurrency !== 'all' || selectedOwners.length > 0 || selectedBank !== 'all' || searchQuery) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      clearTxDateFilter();
+                                      setTxTypeFilter('all');
+                                      setSelectedCurrency('all');
+                                      setSelectedOwners([]);
+                                      setSelectedBank('all');
+                                      setSearchQuery('');
+                                    }}
+                                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-blue-600 text-xs font-semibold rounded-lg shadow-2xs hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    <X size={12} /> Reset all filters
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ) : (
+                            visibleTransactions.map((tx) => {
                             const account = accountsMap.get(tx.account_id);
                             const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
                             
@@ -2662,7 +3045,8 @@ export default function App() {
                                   </td>
                                 </tr>
                               );
-                            })}
+                            })
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -2670,7 +3054,30 @@ export default function App() {
 
                   {/* Mobile Card View */}
                   <div className="md:hidden space-y-3 pb-8">
-                    {visibleTransactions.map((tx) => {
+                    {visibleTransactions.length === 0 ? (
+                      <div className="bg-white border border-gray-100 rounded-xl p-8 text-center text-gray-400 shadow-2xs">
+                        <History size={32} className="mx-auto text-gray-300 mb-2" />
+                        <p className="text-sm font-semibold text-gray-600">No transactions match your filter criteria</p>
+                        <p className="text-xs text-gray-400 mt-1">Try adjusting the date range or clearing active filters</p>
+                        {(isTxDateFilterActive || txTypeFilter !== 'all' || selectedCurrency !== 'all' || selectedOwners.length > 0 || selectedBank !== 'all' || searchQuery) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearTxDateFilter();
+                              setTxTypeFilter('all');
+                              setSelectedCurrency('all');
+                              setSelectedOwners([]);
+                              setSelectedBank('all');
+                              setSearchQuery('');
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 text-blue-600 text-xs font-semibold rounded-lg shadow-2xs hover:bg-gray-50 cursor-pointer"
+                          >
+                            <X size={12} /> Reset all filters
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      visibleTransactions.map((tx) => {
                       const account = accountsMap.get(tx.account_id);
                       const targetAccount = tx.to_account_id ? accountsMap.get(tx.to_account_id) : null;
                       
@@ -2763,7 +3170,8 @@ export default function App() {
                             </CardContent>
                           </Card>
                         );
-                      })}
+                      })
+                    )}
                   </div>
 
                   {filteredTransactions.length > visibleTxCount && (
