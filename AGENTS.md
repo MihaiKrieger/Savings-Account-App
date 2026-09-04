@@ -394,7 +394,7 @@ The application strictly follows **CalVer** (Calendar Versioning) using the form
 
 ### Production Environment Safety (Dockerfile & server.ts)
 - **CJS Bundle Compatibility**: To handle esbuild's bundling of `server.ts` into a standalone CommonJS `dist/server.cjs` file, runtime path resolutions are secured by fallback try-catch scopes to prevent invalid global exceptions for `import.meta.url`, `__filename`, and `__dirname`.
-- **Multi-Stage Docker Setup**: Docker-compose builds use a builder step (Alpine Node, build-essentials Python/Make/G++ for native SQLite compilations) and copy output assets onto a secure, minimal run stage running under Native Node (minimizing image size, cold-boot lag, and execution overhead).
+- **Multi-Stage Docker Setup**: Docker builds use a builder step (`node:22-slim` to leverage precompiled glibc native binaries for `better-sqlite3`, avoiding slow C++ source compilation) and copy output assets onto a lightweight run stage executing under native Node.
 - **Asset compression**: Network payload sizes are optimized through Gzip asset compression via the `compression` Express middleware.
 - **Static asset cache policy**: Static static assets in production (`/dist`) are served with an immutable 1-year cache configuration, except for the HTML entrypoint (`index.html`) which remains fresh with `no-cache, no-store, must-revalidate`.
 
