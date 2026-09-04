@@ -3,17 +3,29 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 
-const dbPath = process.env.DATABASE_URL 
+let dbPath = process.env.DATABASE_URL 
   ? process.env.DATABASE_URL.replace('file:', '') 
   : 'savings.db';
 
-// Ensure directory exists if path contains '/'
-const dbDir = path.dirname(dbPath);
-if (dbDir !== '.' && !fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
+let db: InstanceType<typeof Database>;
 
-const db = new Database(dbPath);
+try {
+  const dbDir = path.dirname(dbPath);
+  if (dbDir !== '.' && !fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+  db = new Database(dbPath);
+} catch (err) {
+  console.warn(`Could not open database at "${dbPath}", falling back to "./savings.db":`, err);
+  dbPath = 'savings.db';
+  try {
+    db = new Database(dbPath);
+  } catch (fallbackErr) {
+    console.warn('Could not open "./savings.db", falling back to "/tmp/savings.db":', fallbackErr);
+    dbPath = path.join('/tmp', 'savings.db');
+    db = new Database(dbPath);
+  }
+}
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');

@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import compression from 'compression';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import db from './db.js';
@@ -21,10 +20,15 @@ try {
 
 async function startServer() {
   const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   app.use(compression());
   app.use(express.json());
+
+  // Health check endpoint for Cloud Run and automated deployment readiness probes
+  app.get(['/api/health', '/health'], (req, res) => {
+    res.json({ status: 'ok', uptime: process.uptime() });
+  });
 
   // --- API Routes ---
 
@@ -404,8 +408,9 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
     }
   });
 
-  // --- Vite Configuration ---
+  // --- Vite / Static Assets Configuration ---
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -422,8 +427,19 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
         }
       }
     }));
+
+    // Explicit 404 for unhandled API calls to avoid returning HTML
+    app.all('/api/*', (req, res) => {
+      res.status(404).json({ error: 'API endpoint not found' });
+    });
+
+    // SPA fallback
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      res.sendFile(path.join(distPath, 'index.html'), (err) => {
+        if (err && !res.headersSent) {
+          res.status(500).send('Application index.html could not be served');
+        }
+      });
     });
   }
 

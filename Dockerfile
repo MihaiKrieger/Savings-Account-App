@@ -24,8 +24,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Ensure data directory exists for persistent SQLite database volumes
+RUN mkdir -p /app/data
+
 # Copy package metadata, production-only node_modules, and compiled server/client files
-COPY package.json ./
+COPY package.json metadata.json* ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
@@ -33,6 +36,10 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV NODE_ENV=production
+
+# Container health probe
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/api/health || exit 1
 
 # Execute using native Node directly (bypassing npm overhead to save memory and CPU)
 CMD ["node", "dist/server.cjs"]
