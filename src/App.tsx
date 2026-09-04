@@ -29,7 +29,9 @@ import { AddTransactionModal } from '@/src/components/modals/AddTransactionModal
 import { ManageOwnersModal } from '@/src/components/modals/ManageOwnersModal';
 import { ManageBanksModal } from '@/src/components/modals/ManageBanksModal';
 
-const APP_VERSION = '2026.9.0';
+const APP_VERSION = '2026.9.1';
+const APP_RELEASE_HIGHLIGHT = 'Modular View Architecture';
+const APP_RELEASE_KEYWORD = 'Modular';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1173,7 +1175,9 @@ export default function App() {
                    <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse"></div>
                    <p className="text-[10px] font-bold uppercase tracking-widest">Secure Privacy Shield Enabled</p>
                 </div>
-                <p className="text-[9px] font-medium opacity-50">Local data access only • v{APP_VERSION}</p>
+                <p className="text-[9px] font-medium opacity-50 truncate max-w-xs mx-auto" title={`v${APP_VERSION} • ${APP_RELEASE_HIGHLIGHT}`}>
+                  Local data access only • v{APP_VERSION} • {APP_RELEASE_HIGHLIGHT}
+                </p>
               </div>
             </motion.div>
           </motion.div>
@@ -1272,10 +1276,38 @@ export default function App() {
           </div>
         </nav>
 
-        <div className={`mt-auto p-6 border-t border-gray-50 flex items-center ${isSidebarCollapsed ? 'justify-center px-4' : 'gap-2'}`}>
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse shrink-0"></div>
-          {!isSidebarCollapsed && (
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">v{APP_VERSION}</span>
+        <div 
+          className={`mt-auto p-4 lg:p-5 border-t border-gray-100 flex items-center min-w-0 transition-all ${
+            isSidebarCollapsed ? 'justify-center px-2 py-4' : 'gap-2'
+          }`}
+          title={`Econosmishu v${APP_VERSION} — ${APP_RELEASE_HIGHLIGHT}`}
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></div>
+          {isSidebarCollapsed ? (
+            <div className="flex flex-col items-center justify-center min-w-0 text-center">
+              <span className="text-[9px] font-bold text-gray-500 tracking-wider uppercase font-mono">
+                v9.1
+              </span>
+              <span 
+                className="text-[8px] font-semibold text-blue-600 truncate max-w-[56px] tracking-tight leading-none"
+                title={APP_RELEASE_HIGHLIGHT}
+              >
+                {APP_RELEASE_KEYWORD}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider font-mono shrink-0">
+                v{APP_VERSION}
+              </span>
+              <span className="text-gray-300 shrink-0 select-none text-[10px]">•</span>
+              <span 
+                className="text-[10px] font-medium text-gray-600 truncate min-w-0 inline-block"
+                title={`v${APP_VERSION} highlight: ${APP_RELEASE_HIGHLIGHT}`}
+              >
+                {APP_RELEASE_HIGHLIGHT}
+              </span>
+            </div>
           )}
         </div>
       </aside>

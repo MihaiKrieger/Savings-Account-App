@@ -386,7 +386,7 @@ Econosmishu implements an elegant, responsive design philosophy built to represe
 ## 7. Versioning & Operational Principles
 
 ### Versioning Rules
-The application strictly follows **CalVer** (Calendar Versioning) using the format `YYYY.M.MICRO` (e.g. `2026.9.0`).
+The application strictly follows **CalVer** (Calendar Versioning) using the format `YYYY.M.MICRO` (e.g. `2026.9.1`).
 - **Format**: `YYYY` = 4-digit Year (e.g., `2026`), `M` = Month without leading zero (e.g., `9` for September), `MICRO` = Release index for that month starting at `.0` for the first release of the month.
 - **First Release Indexing Rule**: The first update/release of any given calendar month resets the `MICRO` counter to `0` (e.g., `2026.9.0`).
 - **Subsequent Monthly Releases**: Each subsequent update within the same month increments the `MICRO` index by 1 (`2026.9.1`, `2026.9.2`, etc.).
