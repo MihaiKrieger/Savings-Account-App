@@ -7,15 +7,12 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (Debian glibc uses prebuilt binaries for better-sqlite3, avoiding slow C++ compilation)
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 
 COPY . .
 
 # Build the application (compiles client assets and bundles the server into dist/server.cjs)
 RUN npm run build
-
-# Prune devDependencies to keep node_modules strictly lightweight for production
-RUN npm prune --production
 
 # Stage 2: Production Runtime
 FROM node:22-slim
