@@ -1,26 +1,22 @@
 import React from 'react';
-import { Radar, ArrowRight, CalendarDays } from 'lucide-react';
+import { Radar, ArrowRight, CalendarDays, Pencil } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/src/utils/formatters';
+import { Account } from '@/src/types';
 
-interface DueAccount {
-  id: number;
-  name: string;
-  bank_name: string;
-  owner: string;
-  current_balance: number;
-  currency: string;
-  due_date: string;
+export interface DueAccount extends Account {
   daysLeft: number;
 }
 
 interface MaturingDepositsCardProps {
   dueSoonAccounts: DueAccount[];
   onNavigateToAccounts: () => void;
+  onEditAccount: (account: Account) => void;
 }
 
 export const MaturingDepositsCard: React.FC<MaturingDepositsCardProps> = ({
   dueSoonAccounts,
-  onNavigateToAccounts
+  onNavigateToAccounts,
+  onEditAccount
 }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm overflow-hidden relative group">
@@ -49,26 +45,36 @@ export const MaturingDepositsCard: React.FC<MaturingDepositsCardProps> = ({
           {dueSoonAccounts.slice(0, 3).map(acc => (
             <div 
               key={acc.id} 
-              className="relative p-3 rounded-xl border border-gray-50 bg-gray-50/30 hover:bg-white hover:border-blue-100 hover:shadow-md transition-all cursor-pointer group/item" 
-              onClick={onNavigateToAccounts}
+              className="relative p-3 rounded-xl border border-gray-100 bg-gray-50/40 hover:bg-white hover:border-gray-200 hover:shadow-xs transition-all group/item" 
             >
               <div className="flex justify-between items-start mb-2">
-                <div>
+                <div className="min-w-0 pr-2">
                   <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                     <p className="text-[10px] font-bold text-blue-600 uppercase tracking-tighter">{acc.bank_name}</p>
                     <span className="text-[9px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-gray-100 leading-none shrink-0">
                       {acc.owner}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-gray-900 group-hover/item:text-blue-700 transition-colors uppercase tracking-tight">{acc.name}</p>
+                  <p className="text-xs font-bold text-gray-900 uppercase tracking-tight truncate">{acc.name}</p>
                 </div>
-                <div className={`px-2 py-1 rounded-lg text-[10px] font-black italic shadow-sm ${
-                  acc.daysLeft <= 0 ? 'bg-red-500 text-white animate-elegant-pulse' :
-                  acc.daysLeft <= 10 ? 'bg-orange-500 text-white' :
-                  acc.daysLeft <= 31 ? 'bg-blue-600 text-white' :
-                  'bg-gray-100 text-gray-500'
-                }`}>
-                  {acc.daysLeft === 0 ? 'DUE TODAY' : acc.daysLeft < 0 ? 'OVERDUE' : `T-MINUS ${acc.daysLeft}D`}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className={`px-2 py-1 rounded-lg text-[10px] font-black italic shadow-xs ${
+                    acc.daysLeft <= 0 ? 'bg-red-500 text-white animate-elegant-pulse' :
+                    acc.daysLeft <= 10 ? 'bg-orange-500 text-white' :
+                    acc.daysLeft <= 31 ? 'bg-blue-600 text-white' :
+                    'bg-gray-100 text-gray-500'
+                  }`}>
+                    {acc.daysLeft === 0 ? 'DUE TODAY' : acc.daysLeft < 0 ? 'OVERDUE' : `T-MINUS ${acc.daysLeft}D`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onEditAccount(acc)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 bg-white border border-slate-200/90 shadow-2xs transition-colors cursor-pointer"
+                    title={`Edit ${acc.name} directly`}
+                    aria-label={`Edit ${acc.name}`}
+                  >
+                    <Pencil size={11} />
+                  </button>
                 </div>
               </div>
               <div className="flex items-center justify-between">

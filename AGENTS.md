@@ -43,9 +43,10 @@ Welcome. This file acts as the primary source of truth (the complete context mod
    │  └─ formatters.ts       # Shared currency, date, and mathematical formatting helpers
    └─ components/
       ├─ layout/             # Top-level shell layouts
-      │  ├─ Header.tsx              # Top bar, quick actions, and mobile drawer trigger
-      │  ├─ Sidebar.tsx             # Main navigation sidebar and owner/bank management triggers
-      │  └─ PrivacyWelcomeModal.tsx # First-time user onboarding modal
+      │  ├─ Header.tsx                    # Top bar, quick actions, and mobile drawer trigger
+      │  ├─ Sidebar.tsx                   # Main navigation sidebar and owner/bank management triggers
+      │  ├─ PrivacyWelcomeModal.tsx       # First-time user onboarding modal
+      │  └─ FloatingCurrencyConverter.tsx # Floating real-time RON ⇄ EUR conversion tool panel
       ├─ views/              # Primary tab views
       │  ├─ DashboardView.tsx       # Financial overview, interactive Recharts graphs, and summary cards
       │  ├─ AccountsView.tsx        # Accounts directory (desktop table & mobile cards) with sorting and filters
@@ -240,8 +241,8 @@ Below are the operational backend API handles declared in `server.ts`. Every end
   - **Returns**: `201 Created` — The fully instantiated `Account` record.
 - **`PUT /api/accounts/:id`**
   - **Payload**: `Pick<Account, "owner" | "bank_name" | "name" | "description" | "is_active" | "due_date">`
-  - **Action**: Updates specified fields.
-  - **Returns**: `200 OK` — `{ success: true }`
+  - **Action**: Updates specified fields. **Zero-Balance Deactivation Guard**: Only accounts with a balance of `0.00` can be marked as inactive (`is_active: 0`). Attempts to deactivate an account with `current_balance > 0.00` reject with `400 Bad Request`.
+  - **Returns**: `200 OK` — `{ success: true }` (or `400 Bad Request` if attempting to deactivate an account with a non-zero balance)
 - **`DELETE /api/accounts/:id`**
   - **Action**: Removes account constraint (Cascading triggers nested transaction deletes).
   - **Returns**: `200 OK` — `{ success: true }`
@@ -317,12 +318,12 @@ The frontend follows a clean, decoupled component architecture centered around a
 - **`PortfolioChartCard.tsx`**: Interactive Recharts timeline visualization supporting both Area and Line modes, currency display toggles, custom cursor tooltips, and dynamic monthly segment compression.
 - **`RecentActivityCard.tsx`**: Compact chronological log displaying the latest transactions with custom iconography and color-coded amounts.
 - **`CurrencyBalancesCard.tsx`**: Breakdown comparing liquid cash reserves and invested assets per currency.
-- **`MaturingDepositsCard.tsx`**: Urgent alert list for term deposits maturing within 30, 60, or 90 days.
+- **`MaturingDepositsCard.tsx`**: Priority Due Radar watchlist for term deposits and scheduled savings items, featuring an explicit pencil edit action button to modify account details, interest parameters, or due dates without navigating away from the Dashboard (clicking the card container itself does not trigger editing).
 - **`OwnerPulseCard.tsx`**: Ownership distribution metrics displaying relative financial shares among family members.
 
 #### 4. Action Modals Suite (`src/components/modals/`)
 - **`AddAccountModal.tsx`**: Creates accounts with name, owner, bank, currency (`RON`/`EUR`), initial balance, and optional maturity date.
-- **`EditAccountModal.tsx`**: Modifies existing account names, associated banks, owners, description notes, active status, and maturity dates.
+- **`EditAccountModal.tsx`**: Modifies existing account names, associated banks, owners, description notes, active status, and maturity dates. Enforces the zero-balance deactivation guard: disables the active toggle and displays an informative alert if the account holds any balance greater than 0.00.
 - **`DeleteAccountModal.tsx`**: Confirmation dialog warning users about non-zero ending balances and cascaded transaction deletions before execution.
 - **`AddTransactionModal.tsx`**: Logs `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER` actions, automatically checking account balance sufficiency and enforcing single-currency transfer constraints.
 - **`ManageOwnersModal.tsx`**: Entity manager for viewing, adding, renaming, and deleting account owners with account count safeguards.
@@ -332,6 +333,7 @@ The frontend follows a clean, decoupled component architecture centered around a
 - **`Header.tsx`**: Sticky top navigation bar containing branding, quick-action transaction/account buttons, search toggle, and mobile menu toggle.
 - **`Sidebar.tsx`**: Primary desktop side navigation supporting tab switching, owner filter shortcuts, and management dialog launchers.
 - **`PrivacyWelcomeModal.tsx`**: Onboarding dialog highlighting local-first privacy, client storage encryption, and zero cloud tracking.
+- **`FloatingCurrencyConverter.tsx`**: Floating rapid-access conversion panel docked at the bottom right. Features live RON ⇄ EUR conversion using the app's real-time exchange rates, bidirectional swap, on-demand rate refreshing, amount presets (50, 100, 500, 1000), and one-click result copying.
 
 #### 6. Shared Helpers (`src/utils/formatters.ts`)
 - Contains pure helper utilities: `formatCurrency(amount, currency)`, `formatDate(dateString)`, `formatShortDate(dateString)`, and `getRelativeTime(dateString)`.

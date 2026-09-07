@@ -238,6 +238,16 @@ async function startServer() {
     const { id } = req.params;
     const { owner, bank_name, name, description, is_active, due_date } = req.body;
     try {
+      // Guard: Only accounts with exactly 0 balance can be marked as inactive
+      if (is_active === false || is_active === 0) {
+        const existingAcc = db.prepare('SELECT current_balance, currency FROM accounts WHERE id = ?').get(id) as { current_balance: number, currency: string } | undefined;
+        if (existingAcc && Math.abs(existingAcc.current_balance) > 0.001) {
+          return res.status(400).json({
+            error: `Cannot deactivate account with a non-zero balance (${existingAcc.current_balance.toFixed(2)} ${existingAcc.currency}). Only accounts with a balance of 0.00 can be marked as inactive.`
+          });
+        }
+      }
+
       db.prepare(`
         UPDATE accounts SET owner = ?, bank_name = ?, name = ?, description = ?, is_active = ?, due_date = ?
         WHERE id = ?

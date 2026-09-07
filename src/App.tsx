@@ -28,10 +28,11 @@ import { DeleteAccountModal } from '@/src/components/modals/DeleteAccountModal';
 import { AddTransactionModal } from '@/src/components/modals/AddTransactionModal';
 import { ManageOwnersModal } from '@/src/components/modals/ManageOwnersModal';
 import { ManageBanksModal } from '@/src/components/modals/ManageBanksModal';
+import { FloatingCurrencyConverter } from '@/src/components/layout/FloatingCurrencyConverter';
 
-const APP_VERSION = '2026.9.1';
-const APP_RELEASE_HIGHLIGHT = 'Modular View Architecture';
-const APP_RELEASE_KEYWORD = 'Modular';
+const APP_VERSION = '2026.9.2';
+const APP_RELEASE_HIGHLIGHT = 'Live Converter, Due Radar Edit & Balance Guard';
+const APP_RELEASE_KEYWORD = 'Unified v2';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -302,6 +303,12 @@ export default function App() {
   const handleEditAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
+
+    if (!editingAccount.is_active && Math.abs(editingAccount.current_balance || 0) > 0.001) {
+      toast.error('Only accounts with a balance of 0.00 can be marked as inactive.');
+      return;
+    }
+
     try {
       const res = await fetch(`/api/accounts/${editingAccount.id}`, {
         method: 'PUT',
@@ -312,6 +319,9 @@ export default function App() {
         toast.success('Account updated');
         setIsEditAccountOpen(false);
         fetchData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to update account');
       }
     } catch (error) {
       toast.error('Failed to update account');
@@ -1416,6 +1426,10 @@ export default function App() {
                 banks={banks}
                 onNavigateToAccounts={() => setActiveTab('accounts')}
                 onNavigateToTransactions={() => setActiveTab('transactions')}
+                onEditAccount={(acc) => {
+                  setEditingAccount(acc);
+                  setIsEditAccountOpen(true);
+                }}
               />
             )}
 
@@ -1569,6 +1583,12 @@ export default function App() {
         setEditingBankName={setEditingBankName}
         handleEditBank={handleEditBank}
         handleDeleteBank={handleDeleteBank}
+      />
+
+      {/* Floating Currency Converter Tool */}
+      <FloatingCurrencyConverter
+        ronToEurRate={ronToEurRate}
+        onRefreshRate={fetchExchangeRate}
       />
     </div>
   );

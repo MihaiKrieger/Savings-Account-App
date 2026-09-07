@@ -79,6 +79,7 @@ interface DashboardViewProps {
   // Navigation
   onNavigateToAccounts: () => void;
   onNavigateToTransactions: () => void;
+  onEditAccount: (account: Account) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -118,7 +119,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   setSelectedBank,
   banks,
   onNavigateToAccounts,
-  onNavigateToTransactions
+  onNavigateToTransactions,
+  onEditAccount
 }) => {
   return (
     <motion.div
@@ -367,6 +369,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <MaturingDepositsCard
             dueSoonAccounts={dueSoonAccounts}
             onNavigateToAccounts={onNavigateToAccounts}
+            onEditAccount={onEditAccount}
           />
           <OwnerPulseCard
             ownerPulse={ownerPulse}

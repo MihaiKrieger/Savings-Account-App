@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatCurrency } from '@/src/utils/formatters';
 import { 
   Dialog, 
   DialogContent, 
@@ -127,14 +128,54 @@ export const EditAccountModal: React.FC<EditAccountModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-xs font-semibold text-slate-700">Account Active</span>
-              <input 
-                type="checkbox" 
-                checked={editingAccount.is_active} 
-                onChange={e => setEditingAccount({...editingAccount, is_active: e.target.checked})} 
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
-              />
+            <div className={`p-3 rounded-lg border transition-all ${
+              editingAccount.current_balance && Math.abs(editingAccount.current_balance) > 0.001
+                ? 'bg-slate-50/80 border-slate-200/80' 
+                : 'bg-slate-50 border-slate-100'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-700">Account Active</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                      editingAccount.is_active 
+                        ? 'bg-emerald-100 text-emerald-700' 
+                        : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {editingAccount.is_active ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Balance: <span className="font-semibold text-slate-700">{formatCurrency(editingAccount.current_balance || 0, editingAccount.currency)}</span>
+                  </p>
+                </div>
+                <input 
+                  type="checkbox" 
+                  id="edit-account-active-checkbox"
+                  checked={editingAccount.is_active} 
+                  disabled={Boolean(editingAccount.current_balance && Math.abs(editingAccount.current_balance) > 0.001)}
+                  onChange={e => {
+                    const hasNonZeroBalance = Boolean(editingAccount.current_balance && Math.abs(editingAccount.current_balance) > 0.001);
+                    if (!e.target.checked && hasNonZeroBalance) return;
+                    setEditingAccount({...editingAccount, is_active: e.target.checked});
+                  }} 
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  title={
+                    editingAccount.current_balance && Math.abs(editingAccount.current_balance) > 0.001
+                      ? 'Only accounts with balance 0.00 can be marked as inactive'
+                      : 'Toggle account active status'
+                  }
+                />
+              </div>
+
+              {Boolean(editingAccount.current_balance && Math.abs(editingAccount.current_balance) > 0.001) && (
+                <div className="mt-2 pt-2 border-t border-slate-200/70 flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50/70 p-2 rounded-md border border-amber-200/60 leading-tight">
+                  <AlertCircle size={13} className="shrink-0 mt-0.5 text-amber-600" />
+                  <span>
+                    Only accounts with a balance of <strong>0.00</strong> can be deactivated. Transfer or withdraw the remaining balance before marking this account as inactive.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
