@@ -325,7 +325,7 @@ The frontend follows a clean, decoupled component architecture centered around a
 - **`AddAccountModal.tsx`**: Creates accounts with name, owner, bank, currency (`RON`/`EUR`), initial balance, and optional maturity date.
 - **`EditAccountModal.tsx`**: Modifies existing account names, associated banks, owners, description notes, active status, and maturity dates. Enforces the zero-balance deactivation guard: disables the active toggle and displays an informative alert if the account holds any balance greater than 0.00.
 - **`DeleteAccountModal.tsx`**: Confirmation dialog warning users about non-zero ending balances and cascaded transaction deletions before execution.
-- **`AddTransactionModal.tsx`**: Logs `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER` actions, automatically checking account balance sufficiency and enforcing single-currency transfer constraints.
+- **`AddTransactionModal.tsx`**: Logs `DEPOSIT`, `WITHDRAWAL`, or `TRANSFER` actions, automatically checking account balance sufficiency and enforcing single-currency transfer constraints. Engineered with a responsive viewport-safe architecture (`max-h-[90dvh]`, fixed header, scrollable body with `overflow-y-auto`, and pinned sticky footer) ensuring no clipping on mobile or smaller screens when extensive transfer fields are visible.
 - **`ManageOwnersModal.tsx`**: Entity manager for viewing, adding, renaming, and deleting account owners with account count safeguards.
 - **`ManageBanksModal.tsx`**: Entity manager for viewing, adding, renaming, and deleting financial institutions with account count safeguards.
 

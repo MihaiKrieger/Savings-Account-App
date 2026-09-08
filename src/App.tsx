@@ -30,9 +30,9 @@ import { ManageOwnersModal } from '@/src/components/modals/ManageOwnersModal';
 import { ManageBanksModal } from '@/src/components/modals/ManageBanksModal';
 import { FloatingCurrencyConverter } from '@/src/components/layout/FloatingCurrencyConverter';
 
-const APP_VERSION = '2026.9.2';
-const APP_RELEASE_HIGHLIGHT = 'Live Converter, Due Radar Edit & Balance Guard';
-const APP_RELEASE_KEYWORD = 'Unified v2';
+const APP_VERSION = '2026.9.3';
+const APP_RELEASE_HIGHLIGHT = 'Scroll-Safe Transaction Modal (Desktop & Mobile)';
+const APP_RELEASE_KEYWORD = 'Modal Overflow';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
