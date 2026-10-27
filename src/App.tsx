@@ -30,9 +30,9 @@ import { ManageOwnersModal } from '@/src/components/modals/ManageOwnersModal';
 import { ManageBanksModal } from '@/src/components/modals/ManageBanksModal';
 import { FloatingCurrencyConverter } from '@/src/components/layout/FloatingCurrencyConverter';
 
-const APP_VERSION = '2026.9.3';
-const APP_RELEASE_HIGHLIGHT = 'Scroll-Safe Transaction Modal (Desktop & Mobile)';
-const APP_RELEASE_KEYWORD = 'Modal Overflow';
+const APP_VERSION = '2026.10.0';
+const APP_RELEASE_HIGHLIGHT = 'Documentation & Dependency Synchronization';
+const APP_RELEASE_KEYWORD = 'Docs Sync';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -1296,7 +1296,7 @@ export default function App() {
           {isSidebarCollapsed ? (
             <div className="flex flex-col items-center justify-center min-w-0 text-center">
               <span className="text-[9px] font-bold text-gray-500 tracking-wider uppercase font-mono">
-                v9.1
+                v10.0
               </span>
               <span 
                 className="text-[8px] font-semibold text-blue-600 truncate max-w-[56px] tracking-tight leading-none"
