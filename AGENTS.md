@@ -23,7 +23,7 @@ Welcome. This file acts as the primary source of truth (the complete context mod
 ├─ .env.example              # Environment variables template
 ├─ .gitignore                # Blocked build artifacts and DB files (savings.db is ignored in git, persists locally)
 ├─ AGENTS.md                 # [THIS FILE] Absolute master context specification for AI agents
-├─ Dockerfile                # Multi-stage Docker build for production deployments (using Node 22-alpine)
+├─ Dockerfile                # Multi-stage Docker build for production deployments (using Node 22-slim)
 ├─ README.md                 # General project documentation and user overview
 ├─ components/               # Base UI primitives (Button, Card, Dialog, Input, Table, Sonner, etc.)
 │  └─ ui/
@@ -404,5 +404,5 @@ The application strictly follows **CalVer** (Calendar Versioning) using the form
 If context has been wiped or a new session is being created:
 1. Examine this file completely.
 2. Read the current values of `/package.json` and ensure synchronization.
-3. Call `lint_applet` followed by `compile_applet` to check that the container runtime environments are valid and ready.
+3. Run `npm run lint` (`tsc --noEmit`) followed by `npm run build` (`vite build` & `esbuild server.ts`) to verify that types and compilation pass cleanly.
 4. Execute features directly, keeping types, validations, and SQLite data rounding operations strict.

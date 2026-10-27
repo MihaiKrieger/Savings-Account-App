@@ -12,7 +12,6 @@
 - **Account Filtering & Sorting**: Sort accounts by balance, owner, bank, currency, or due date. Filter by status (active vs. inactive) to preserve historical ledger records.
 - **Atomic Transactions**: Perform deposits, withdrawals, and same-currency transfers with instant ledger balance recalculation and atomic rollback protection.
 - **Portfolio Analytics & Charts**: Interactive Recharts visualizations with EUR-to-RON scaled comparisons and chronological timeline progression.
-- **Export & Import**: Backup and restore transaction data and account structures effortlessly.
 - **SQLite Persistence**: Powered by `better-sqlite3` with indexed database queries for fast performance.
 
 ---
