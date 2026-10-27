@@ -1295,8 +1295,11 @@ export default function App() {
           <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse shrink-0"></div>
           {isSidebarCollapsed ? (
             <div className="flex flex-col items-center justify-center min-w-0 text-center">
-              <span className="text-[9px] font-bold text-gray-500 tracking-wider uppercase font-mono">
-                v10.0
+              <span 
+                className="text-[9px] font-bold text-gray-500 tracking-wider uppercase font-mono truncate max-w-[56px]"
+                title={`v${APP_VERSION}`}
+              >
+                v{APP_VERSION}
               </span>
               <span 
                 className="text-[8px] font-semibold text-blue-600 truncate max-w-[56px] tracking-tight leading-none"
